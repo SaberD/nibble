@@ -11,7 +11,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "go version",
+	"postCreateCommand": "apt-get update && apt-get install libpcap-dev -y",
 
 	// Configure tool-specific properties.
 	// "customizations": {},

@@ -5,7 +5,15 @@ import (
 	"net"
 	"strings"
 
+	"nibble/internal/scan"
+
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+var (
+	titleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5"))
+	itemStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
 )
 
 type ifaceInfo struct {
@@ -41,7 +49,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			m.selected = true
 			m.selectedIface = m.ifaces[m.cursor]
-			results := performScan(m.selectedIface.addrs[0].String())
+			results := scan.PerformScan(m.selectedIface.addrs[0].String())
 			prettyPrintResults(results)
 			return m, tea.Quit
 		}
@@ -71,4 +79,14 @@ func (m model) View() string {
 	b.WriteString("\nPress q to quit.\n")
 
 	return b.String()
+}
+
+func prettyPrintResults(results []string) {
+	title := titleStyle.Render("Scan Results:")
+	fmt.Println(title)
+
+	for _, result := range results {
+		item := itemStyle.Render(result)
+		fmt.Println(" •", item)
+	}
 }
