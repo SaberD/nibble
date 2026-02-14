@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - 'v*'
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -21,3 +22,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
         run: goreleaser release --clean
+
+  publish:
+    needs: release
+    uses: ./.github/workflows/publish.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      tag: ${{ github.ref_name }}
+    secrets: inherit
