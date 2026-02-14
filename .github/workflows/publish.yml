@@ -17,6 +17,12 @@ jobs:
           ref: refs/tags/${{ inputs.tag }}
           fetch-depth: 0
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
       - name: Extract version from release tag
         id: version
         run: |
@@ -25,13 +31,13 @@ jobs:
 
       - name: Sync npm metadata version to tag
         run: |
-          node -e "const fs=require('fs');const v='${{ steps.version.outputs.VERSION }}';for(const p of ['npm-package/package.json','npm-package/go-npm.json']){const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=v;fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');}"
+          node -e "const fs=require('fs');const v='${{ steps.version.outputs.VERSION }}';const p='npm-package/package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=v;fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');"
 
-      - name: Publish npm packages from GoReleaser artifacts
-        uses: evg4b/goreleaser-npm-publisher-action@v1.0.0
-        with:
-          prefix: '@saberd'
-          token: ${{ secrets.NPM_TOKEN }}
+      - name: Publish npm package
+        working-directory: npm-package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
   publish-pypi:
     runs-on: ubuntu-latest
@@ -60,3 +66,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: python-package/dist/
+          skip-existing: true
