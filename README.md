@@ -1,5 +1,5 @@
 # Nibble
-Local network scanner that focuses on speed and ease of use with hardware identification and a terminal UI.
+Nibble is a CLI tool for local network scanning that focuses on speed and ease of use.
 
 Select a network interface, and Nibble scans your local subnet. Lists hosts, hardware manufacturer, open ports and their services.
 
@@ -40,5 +40,9 @@ Or run without installing:
 ```bash
 npx @saberd/nibble
 ```
+
+## Usage
+Run the CLI with `nibble`, select a network interface.  
+Interface icons: `🔌` = Ethernet, `📶` = Wi-Fi.
 
 Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea)
