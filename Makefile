@@ -1,4 +1,4 @@
-.PHONY: all build demo update run pip npm
+.PHONY: all build demo update run pip npm goreleaser
 
 all: run
 
@@ -43,3 +43,15 @@ pip:
 npm:
 	@cd npm-package && npm pack --silent
 	@echo "Built npm package tarball in npm-package/"
+
+goreleaser:
+	@if ! command -v goreleaser >/dev/null 2>&1; then \
+		echo "Installing goreleaser locally..."; \
+		TMP_DIR=$$(mktemp -d); \
+		curl -sL https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_Linux_x86_64.tar.gz | tar xz -C "$$TMP_DIR"; \
+		sudo mv "$$TMP_DIR/goreleaser" /usr/local/bin/; \
+		rm -rf "$$TMP_DIR"; \
+	fi
+	@goreleaser check
+	@goreleaser release --snapshot --clean
+	@echo "GoReleaser snapshot validation passed"

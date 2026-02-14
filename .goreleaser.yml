@@ -2,8 +2,9 @@ version: 2
 
 # Goreleaser config for Go binary release
 project_name: nibble
+dist: .artifacts/goreleaser
 builds:
-  - main: ./main.go
+  - main: .
     binary: nibble
     goos:
       - linux
@@ -15,17 +16,13 @@ builds:
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     files:
-      - LICENSE
       - README.md
-      - "nibble"
 release:
   github:
     owner: saberd
     name: nibble
-    draft: false
-    prerelease: false
-    tag_name: "v{{ .Version }}"
-    token: ${{ secrets.GITHUB_TOKEN }}
+  draft: false
+  prerelease: false
 brews:
   - name: nibble
     repository:

@@ -1,3 +1,4 @@
 nibble
 *.cast
 .claude/
+.artifacts/

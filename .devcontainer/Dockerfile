@@ -24,6 +24,9 @@ RUN groupadd --gid ${USER_GID} ${USERNAME} \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
     && chmod 440 /etc/sudoers.d/${USERNAME}
 
+RUN curl -sL https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_Linux_x86_64.tar.gz | tar xz \
+    && mv goreleaser /usr/local/bin/goreleaser
+
 RUN npm install -g svg-term-cli \
     && pip install --break-system-packages asciinema
 
