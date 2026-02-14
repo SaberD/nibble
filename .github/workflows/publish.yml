@@ -17,6 +17,9 @@ on:
 jobs:
   publish-npm:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || inputs.tag }}
     steps:
@@ -29,7 +32,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Extract version from release tag
         id: version
@@ -41,25 +43,11 @@ jobs:
         run: |
           node -e "const fs=require('fs');const v='${{ steps.version.outputs.VERSION }}';const p='npm-package/package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=v;fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');"
 
-      - name: Configure npm auth
-        working-directory: npm-package
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NPM_TOKEN" ]; then
-            echo "NPM_TOKEN secret is missing"
-            exit 1
-          fi
-          {
-            echo "@saberd:registry=https://registry.npmjs.org/"
-            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}"
-          } > .npmrc
-
       - name: Publish npm package
         working-directory: npm-package
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+        run: npm publish --provenance --access public
 
   publish-pypi:
     runs-on: ubuntu-latest
