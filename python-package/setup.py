@@ -15,7 +15,7 @@ def get_version():
         return "0.1.0"
 
 setup(
-    name="nibble",
+    name="nibble-cli",
     version=get_version(),
     description="Fast local network scanner with hardware identification and a terminal UI",
     long_description=open("README.md").read() if os.path.exists("README.md") else "",

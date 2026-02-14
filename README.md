@@ -28,7 +28,7 @@ brew install saberd/tap/nibble
 ```
 pip:
 ```bash
-pip install nibble
+pip install nibble-cli
 ```
 npm:
 ```bash
