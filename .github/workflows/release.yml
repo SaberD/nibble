@@ -5,10 +5,9 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
-      ref:
-        description: Git ref to test (branch, tag, or SHA)
-        required: false
-        default: main
+      tag:
+        description: Release tag to run against (for example v0.1.0)
+        required: true
         type: string
       dry_run:
         description: Run GoReleaser in snapshot mode (no GitHub release)
@@ -20,11 +19,24 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve release tag
+        id: vars
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="${{ github.event.inputs.tag }}"
+          fi
+          if [[ ! "$TAG" =~ ^v ]]; then
+            echo "Expected a tag starting with 'v', got: $TAG"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
+          ref: ${{ steps.vars.outputs.tag }}
           fetch-depth: 0
-          lfs: true
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
