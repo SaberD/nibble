@@ -75,14 +75,3 @@ jobs:
           fi
           echo "Running: $CMD"
           eval "$CMD"
-
-  publish:
-    needs: release
-    if: ${{ github.event_name == 'push' }}
-    uses: ./.github/workflows/publish.yml
-    permissions:
-      id-token: write
-      contents: read
-    with:
-      tag: ${{ github.ref_name }}
-    secrets: inherit
