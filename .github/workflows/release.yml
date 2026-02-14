@@ -23,23 +23,29 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
+          fetch-depth: 0
+          lfs: true
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: '1.24.2'
       - name: Install Goreleaser
         run: |
-          curl -sL https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_Linux_x86_64.tar.gz | tar xz
-          sudo mv goreleaser /usr/local/bin/
-      - name: Run Goreleaser (release)
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true' }}
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          curl -sL https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_Linux_x86_64.tar.gz | tar xz -C "$TMP_DIR"
+          sudo mv "$TMP_DIR/goreleaser" /usr/local/bin/
+      - name: Run GoReleaser
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-        run: goreleaser release --clean
-      - name: Run GoReleaser (dry run)
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' }}
-        run: goreleaser release --snapshot --clean
+        run: |
+          CMD="goreleaser release --clean"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            CMD="goreleaser release --snapshot --clean"
+          fi
+          echo "Running: $CMD"
+          eval "$CMD"
 
   publish:
     needs: release
