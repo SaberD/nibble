@@ -23,7 +23,7 @@ release:
     name: nibble
   draft: false
   prerelease: false
-brews:
+homebrew_casks:
   - name: nibble
     repository:
       owner: saberd
@@ -35,5 +35,3 @@ brews:
     commit_author:
       name: "github-actions[bot]"
       email: "github-actions[bot]@users.noreply.github.com"
-    test: |
-      system "#{bin}/nibble", "--help"
