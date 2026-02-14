@@ -1,3 +1,5 @@
+version: 2
+
 # Goreleaser config for Go binary release
 project_name: nibble
 builds:
