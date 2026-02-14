@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const path = require('path');
-const os = require('os');
 
-// The Go binary is installed to $GOPATH/bin or ~/go/bin
-const goBin = path.join(os.homedir(), 'go', 'bin', 'nibble');
+const binName = process.platform === 'win32' ? 'nibble.exe' : 'nibble';
+const binary = path.join(__dirname, '..', 'vendor', binName);
 
-try {
-  const args = process.argv.slice(2).join(' ');
-  execSync(`${goBin} ${args}`, { stdio: 'inherit' });
-} catch (error) {
-  process.exit(error.status || 1);
+const result = spawnSync(binary, process.argv.slice(2), { stdio: 'inherit' });
+if (result.error) {
+  console.error(`Failed to execute nibble binary: ${result.error.message}`);
+  process.exit(1);
 }
+process.exit(result.status || 0);

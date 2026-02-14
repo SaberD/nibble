@@ -10,7 +10,7 @@ def get_version():
             cwd=os.path.dirname(__file__),
             stderr=subprocess.DEVNULL
         ).decode().strip()
-        return version if version.startswith("v") else version
+        return version[1:] if version.startswith("v") else version
     except:
         return "0.1.0"
 
@@ -29,7 +29,7 @@ setup(
             "nibble=nibble_installer:main",
         ],
     },
-    install_requires=["python-go"],
+    install_requires=[],
     python_requires=">=3.6",
     classifiers=[
         "Development Status :: 4 - Beta",

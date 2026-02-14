@@ -14,6 +14,7 @@ RUN apt-get update \
         nodejs \
         npm \
         python3-pip \
+        python3-venv \
         sudo \
     && rm -rf /var/lib/apt/lists/*
 

@@ -5,57 +5,52 @@ on:
     types: [created]
 
 jobs:
-  publish-pypi:
+  publish-npm:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Extract version from tag
+        with:
+          ref: refs/tags/${{ github.event.release.tag_name }}
+          fetch-depth: 0
+
+      - name: Extract version from release tag
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Sync npm metadata version to tag
+        run: |
+          node -e "const fs=require('fs');const v='${{ steps.version.outputs.VERSION }}';for(const p of ['npm-package/package.json','npm-package/go-npm.json']){const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=v;fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');}"
+
+      - name: Publish npm packages from GoReleaser artifacts
+        uses: evg4b/goreleaser-npm-publisher-action@v1.0.0
+        with:
+          prefix: '@saberd'
+          token: ${{ secrets.NPM_TOKEN }}
+
+  publish-pypi:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ github.event.release.tag_name }}
+          fetch-depth: 0
       
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
       
-      - name: Update version in setup.py
-        run: sed -i "s/version=\"0.1.0\"/version=\"${{ steps.version.outputs.VERSION }}\"/g" python-package/setup.py
-      
       - name: Install build dependencies
         run: pip install build twine
       
       - name: Build Python package
         run: cd python-package && python -m build
-      
-      - name: Publish to PyPI
-        run: twine upload python-package/dist/* -u __token__ -p ${{ secrets.PYPI_API_TOKEN }}
 
-  publish-npm:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write  # Mandatory for Trusted Publishing
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Extract version
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Publish to PyPI (Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
-      
-      - name: Update version
-        run: |
-          cd npm-package
-          npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version
-      
-      - name: Publish to npm
-        run: |
-          cd npm-package
-          # --provenance adds a secure link to your GitHub source
-          npm publish --provenance --access public
+          packages-dir: python-package/dist/

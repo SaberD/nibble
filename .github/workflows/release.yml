@@ -21,14 +21,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
         run: goreleaser release --rm-dist
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install go-npm
-        run: npm install -g go-npm
-      - name: go-npm publish
-        run: go-npm publish
-        working-directory: ./npm-package
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
