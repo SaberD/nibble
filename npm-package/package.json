@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/saberd/nibble.git"
+    "url": "https://github.com/SaberD/nibble"
   },
   "author": "saberd",
   "license": "MIT",
@@ -25,7 +25,10 @@
   "engines": {
     "node": ">=12.0.0"
   },
+  "provenance": true,
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "provenance": true
   }
 }

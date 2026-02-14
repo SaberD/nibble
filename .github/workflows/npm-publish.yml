@@ -25,7 +25,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Extract version from release tag
         id: version
@@ -41,4 +41,5 @@ jobs:
         working-directory: npm-package
         env:
           NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
-        run: npm publish --provenance --access public
+          NPM_CONFIG_PROVENANCE: "true"
+        run: npm publish --access public
