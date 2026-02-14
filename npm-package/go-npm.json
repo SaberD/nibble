@@ -1,0 +1,7 @@
+{
+  "bin": "../nibble",
+  "name": "@saberd/nibble",
+  "platforms": ["linux", "darwin", "win32"],
+  "arch": ["x64", "arm64"],
+  "version": "1.0.0"
+}

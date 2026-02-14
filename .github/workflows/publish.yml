@@ -1,0 +1,61 @@
+name: Publish Packages
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  publish-pypi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Update version in setup.py
+        run: sed -i "s/version=\"0.1.0\"/version=\"${{ steps.version.outputs.VERSION }}\"/g" python-package/setup.py
+      
+      - name: Install build dependencies
+        run: pip install build twine
+      
+      - name: Build Python package
+        run: cd python-package && python -m build
+      
+      - name: Publish to PyPI
+        run: twine upload python-package/dist/* -u __token__ -p ${{ secrets.PYPI_API_TOKEN }}
+
+  publish-npm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Mandatory for Trusted Publishing
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Update version
+        run: |
+          cd npm-package
+          npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version
+      
+      - name: Publish to npm
+        run: |
+          cd npm-package
+          # --provenance adds a secure link to your GitHub source
+          npm publish --provenance --access public

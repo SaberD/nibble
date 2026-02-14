@@ -1,0 +1,12 @@
+services:
+  app:
+    image: golang:1.24-bookworm
+    container_name: nibble-dev
+    network_mode: host
+    user: root
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    command: /bin/bash -c "useradd -m -s /bin/bash -u 1000 vscode && apt-get update && apt-get install -y libpcap-dev nodejs npm python3-pip && npm install -g svg-term-cli && pip install --break-system-packages asciinema && su -s /bin/bash vscode"
+    stdin_open: true
+    tty: true

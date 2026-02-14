@@ -1,0 +1,33 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      - name: Install Goreleaser
+        run: |
+          curl -sL https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_Linux_x86_64.tar.gz | tar xz
+          sudo mv goreleaser /usr/local/bin/
+      - name: Run Goreleaser
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: goreleaser release --rm-dist
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install go-npm
+        run: npm install -g go-npm
+      - name: go-npm publish
+        run: go-npm publish
+        working-directory: ./npm-package
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

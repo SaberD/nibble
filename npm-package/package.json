@@ -1,0 +1,34 @@
+{
+  "name": "@saberd/nibble",
+  "version": "0.1.0",
+  "description": "Fast local network scanner with hardware identification and a terminal UI",
+  "bin": {
+    "nibble": "bin/nibble.js"
+  },
+  "scripts": {
+    "postinstall": "node bin/install.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/saberd/nibble.git"
+  },
+  "author": "saberd",
+  "license": "MIT",
+  "keywords": [
+    "network",
+    "scanner",
+    "arp",
+    "ports",
+    "cli",
+    "tui"
+  ],
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "dependencies": {
+    "golang": "^1.23.0"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  }
+}
