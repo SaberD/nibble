@@ -3,12 +3,26 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to test (branch, tag, or SHA)
+        required: false
+        default: main
+        type: string
+      dry_run:
+        description: Run GoReleaser in snapshot mode (no GitHub release)
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
@@ -17,14 +31,19 @@ jobs:
         run: |
           curl -sL https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_Linux_x86_64.tar.gz | tar xz
           sudo mv goreleaser /usr/local/bin/
-      - name: Run Goreleaser
+      - name: Run Goreleaser (release)
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
         run: goreleaser release --clean
+      - name: Run GoReleaser (dry run)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' }}
+        run: goreleaser release --snapshot --clean
 
   publish:
     needs: release
+    if: ${{ github.event_name == 'push' }}
     uses: ./.github/workflows/publish.yml
     permissions:
       id-token: write
