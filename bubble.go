@@ -92,7 +92,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if m.scanning || m.scanComplete {
-			if msg.String() == "ctrl+c" {
+			if msg.String() == "ctrl+c" || msg.String() == "q" {
+				// Preserve current results when quitting mid-scan so the final
+				// rendered view remains in scrollback after alt-screen exits.
+				if m.scanning {
+					m.scanning = false
+					m.scanComplete = true
+				}
 				return m, tea.Quit
 			}
 			return m, nil
@@ -256,6 +262,11 @@ func (m model) View() string {
 		} else {
 			emptyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("239")).Italic(true)
 			b.WriteString(emptyStyle.Render("No hosts found") + "\n")
+		}
+
+		if m.scanning {
+			helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+			b.WriteString("\n" + helpStyle.Render("q: quit") + "\n")
 		}
 
 		return b.String()

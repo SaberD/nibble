@@ -111,7 +111,7 @@ type DemoScanner struct{}
 
 // ScanNetwork scans a real subnet with controlled concurrency for smooth progress.
 func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- ScanProgress) {
-	ip, ipnet, err := net.ParseCIDR(subnet)
+	_, ipnet, err := net.ParseCIDR(subnet)
 	if err != nil {
 		return
 	}
@@ -120,6 +120,51 @@ func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- S
 	ones, bits := ipnet.Mask.Size()
 	totalHosts := 1 << uint(bits-ones)
 
+	skipIPs := s.runMulticastDiscoveryPhase(ifaceName, ipnet, totalHosts, progressChan)
+	s.runSubnetSweepPhase(ifaceName, ipnet, totalHosts, skipIPs, progressChan)
+	close(progressChan) // Signal completion
+}
+
+// runMulticastDiscoveryPhase discovers hosts advertised over mDNS and emits
+// them immediately, returning IPs to skip during the full subnet sweep.
+func (s *NetScanner) runMulticastDiscoveryPhase(ifaceName string, subnet *net.IPNet, totalHosts int, progressChan chan<- ScanProgress) map[string]struct{} {
+	discovered := discoverSSHViaMDNS(ifaceName, subnet)
+	skipIPs := make(map[string]struct{}, len(discovered))
+	for _, svc := range discovered {
+		skipIPs[svc.IP] = struct{}{}
+
+		hostInfo := scanHost(ifaceName, svc.IP)
+		if hostInfo == "" {
+			banner := "mDNS _ssh._tcp.local"
+			if svc.Hostname != "" {
+				banner = "mDNS " + svc.Hostname
+			}
+			port := int(svc.Port)
+			if port == 0 {
+				port = 22
+			}
+			hostInfo = FormatHost(HostResult{
+				IP:    svc.IP,
+				Ports: []PortInfo{{Port: port, Banner: banner}},
+			})
+		}
+
+		select {
+		case progressChan <- ScanProgress{
+			Host:    hostInfo,
+			Scanned: 0,
+			Total:   totalHosts,
+		}:
+		default:
+		}
+	}
+
+	return skipIPs
+}
+
+// runSubnetSweepPhase scans the whole subnet and skips hosts already found
+// via multicast discovery.
+func (s *NetScanner) runSubnetSweepPhase(ifaceName string, subnet *net.IPNet, totalHosts int, skipIPs map[string]struct{}, progressChan chan<- ScanProgress) {
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
 	scanned := 0
@@ -137,7 +182,7 @@ func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- S
 	}
 
 	// Scan hosts with controlled concurrency
-	for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); incrementIP(ip) {
+	for ip := subnet.IP.Mask(subnet.Mask); subnet.Contains(ip); incrementIP(ip) {
 		wg.Add(1)
 		semaphore <- struct{}{} // Acquire semaphore
 
@@ -145,7 +190,10 @@ func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- S
 			defer wg.Done()
 			defer func() { <-semaphore }() // Release semaphore
 
-			hostInfo := scanHost(ifaceName, currentIP)
+			hostInfo := ""
+			if _, alreadyFound := skipIPs[currentIP]; !alreadyFound {
+				hostInfo = scanHost(ifaceName, currentIP)
+			}
 
 			mutex.Lock()
 			scanned++
@@ -164,7 +212,6 @@ func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- S
 	}
 
 	wg.Wait()
-	close(progressChan) // Signal completion
 }
 
 // scanHost resolves hardware via ARP, scans ports, grabs banners.
