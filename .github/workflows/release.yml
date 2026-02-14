@@ -75,3 +75,12 @@ jobs:
           fi
           echo "Running: $CMD"
           eval "$CMD"
+
+  brew:
+    if: ${{ github.event_name == 'push' }}
+    needs: release
+    runs-on: ubuntu-latest
+    environment: brew
+    steps:
+      - name: Mark Homebrew publish complete
+        run: echo "Homebrew cask is published by GoReleaser in the release job."
