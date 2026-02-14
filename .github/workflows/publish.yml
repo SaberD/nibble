@@ -1,6 +1,12 @@
 name: Publish Packages
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish (for example v1.2.3)
+        required: true
+        type: string
   workflow_call:
     inputs:
       tag:
@@ -11,10 +17,12 @@ on:
 jobs:
   publish-npm:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || inputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: refs/tags/${{ inputs.tag }}
+          ref: refs/tags/${{ env.RELEASE_TAG }}
           fetch-depth: 0
 
       - name: Set up Node
@@ -26,17 +34,31 @@ jobs:
       - name: Extract version from release tag
         id: version
         run: |
-          TAG='${{ inputs.tag }}'
+          TAG='${{ env.RELEASE_TAG }}'
           echo "VERSION=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Sync npm metadata version to tag
         run: |
           node -e "const fs=require('fs');const v='${{ steps.version.outputs.VERSION }}';const p='npm-package/package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=v;fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');"
 
+      - name: Configure npm auth
+        working-directory: npm-package
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "NPM_TOKEN secret is missing"
+            exit 1
+          fi
+          {
+            echo "@saberd:registry=https://registry.npmjs.org/"
+            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}"
+          } > .npmrc
+
       - name: Publish npm package
         working-directory: npm-package
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public
 
   publish-pypi:
@@ -45,10 +67,12 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || inputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: refs/tags/${{ inputs.tag }}
+          ref: refs/tags/${{ env.RELEASE_TAG }}
           fetch-depth: 0
 
       - name: Set up Python
@@ -59,8 +83,11 @@ jobs:
       - name: Install build dependencies
         run: pip install build twine
 
+      - name: Clean Python dist directory
+        run: rm -rf python-package/dist
+
       - name: Build Python package
-        run: cd python-package && python -m build
+        run: cd python-package && python -m build --sdist --wheel
 
       - name: Publish to PyPI (Trusted Publishing)
         uses: pypa/gh-action-pypi-publish@release/v1
