@@ -11,6 +11,12 @@ Select a network interface, and Nibble scans your local subnet. Lists hosts, har
 - **Multi-port scanning** — SSH, Telnet, HTTP, HTTPS, SMB, RDP, and more
 - **Smart interface filtering** — Skips loopback and irrelevant adapters
 
+## Hotkeys
+`↑/↓/←/→`, `w/s/a/d`, `h/j/k/l`: selection  
+`Enter`: confirm.  
+`q` or `Ctrl+C`: quit.  
+`?`: help.
+
 ## Installation
 go:
 ```bash
