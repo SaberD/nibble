@@ -26,9 +26,5 @@ RUN groupadd --gid ${USER_GID} ${USERNAME} \
 RUN npm install -g svg-term-cli \
     && pip install --break-system-packages asciinema
 
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable \
-    && /root/.cargo/bin/cargo install --git https://github.com/asciinema/agg --locked \
-    && ln -sf /root/.cargo/bin/agg /usr/local/bin/agg
-
 USER ${USERNAME}
 WORKDIR /workspace

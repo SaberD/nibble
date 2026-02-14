@@ -1,21 +1,24 @@
 # Nibble
+Local network scanner that focuses on speed and ease of use with hardware identification and a terminal UI.
 
-Fast local network scanner with hardware identification and a terminal UI.
+Select a network interface, and Nibble scans your local subnet. Lists hosts, hardware manufacturer, open ports and their services.
 
 ![demo](demo.svg)
 
 
-- **Hardware identification** — Resolves MAC addresses to manufacturers via the IEEE OUI database
-- **Banner grabbing** — Detects service versions (SSH, HTTP Server, etc.)
+- **Hardware identification** — Maps each device MAC address to a likely vendor (for example, Raspberry Pi, Ubiquiti, Apple), so unknown IPs are easier to recognize
+- **Banner grabbing** — Reads service banners on open ports to show what software is running (for example, OpenSSH or nginx versions), so you can identify services
 - **Multi-port scanning** — SSH, Telnet, HTTP, HTTPS, SMB, RDP, and more
-- **Concurrent scanning** — 100 parallel goroutines, rate-limited for reliability
 - **Smart interface filtering** — Skips loopback and irrelevant adapters
-- **Interactive UI** — Select interfaces with arrow keys, live progress bar
 
 ## Installation
 go:
 ```bash
 go install github.com/saberd/nibble@latest
+```
+brew:
+```bash
+brew install saberd/tap/nibble
 ```
 pip:
 ```bash
@@ -32,14 +35,4 @@ Or run without installing:
 npx @saberd/nibble
 ```
 
-## Usage
-
-Select a network interface, and Nibble scans your local subnet — discovering hosts, open ports, service banners, and hardware manufacturers.
-
-type `?` for help in terminal
-
-## Built with
-
-- [Bubble Tea](https://github.com/charmbracelet/bubbletea) — TUI framework
-- [Lip Gloss](https://github.com/charmbracelet/lipgloss) — Styling
-- [mdlayher/arp](https://github.com/mdlayher/arp) — ARP resolution
+Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea)

@@ -19,6 +19,7 @@ jobs:
       - name: Run Goreleaser
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
         run: goreleaser release --rm-dist
       - name: Set up Node.js
         uses: actions/setup-node@v4

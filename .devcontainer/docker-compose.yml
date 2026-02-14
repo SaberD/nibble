@@ -1,9 +1,9 @@
 services:
-  app:
+  nibble:
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
-    container_name: nibble-dev
+    container_name: devcontainer-nibble
     network_mode: host
     user: vscode
     volumes:

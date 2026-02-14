@@ -16,14 +16,12 @@ demo: nibble
 	@LAST=$$(tail -1 demo.cast | grep -oP '^\[\K[0-9.]+'); \
 		END=$$(awk "BEGIN {print $$LAST + 3}"); \
 		echo "[$$END, \"o\", \"\"]" >> demo.cast
-	@svg-term --in demo.cast --out demo.svg --window
+	@SVG_HEIGHT=$$(head -n 1 demo.cast | grep -oP '"height":\s*\K[0-9]+'); \
+	svg-term --in demo.cast --out demo.svg --window --height "$$SVG_HEIGHT"
 	@echo "Generated demo.svg"
 
 update:
 	@echo "Downloading IEEE OUI database..."
 	@curl -sL "https://standards-oui.ieee.org/oui/oui.csv" -o internal/scan/oui.csv
 	@echo "Updated $$(wc -l < internal/scan/oui.csv) entries"
-
-
-
 

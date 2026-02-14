@@ -3,7 +3,7 @@
 {
 	"name": "Go",
 	"dockerComposeFile": "docker-compose.yml",
-	"service": "app",
+	"service": "nibble",
 	"workspaceFolder": "/workspace",
 	"remoteUser": "vscode"
 }
