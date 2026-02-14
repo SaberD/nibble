@@ -55,17 +55,13 @@ func main() {
 		selected: false,
 	}
 
-	// Start the Bubble Tea program (use alt screen for selection UI)
-	prog := tea.NewProgram(initialModel, tea.WithAltScreen())
-	finalModel, err := prog.Run()
+	// Start Bubble Tea in the normal terminal screen so the final scan
+	// output remains visible and the shell prompt returns directly below it.
+	prog := tea.NewProgram(initialModel)
+	_, err := prog.Run()
 	if err != nil {
 		fmt.Printf("Error starting the program: %v", err)
 		os.Exit(1)
-	}
-
-	// Print final view so results stay in scrollback after alt screen exits
-	if m, ok := finalModel.(model); ok && m.scanComplete {
-		fmt.Print(m.View())
 	}
 }
 
