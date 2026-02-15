@@ -3,7 +3,7 @@ Nibble is a CLI tool for local network scanning that focuses on speed and ease o
 
 Select a network interface, and Nibble scans your local subnet. Lists hosts, hardware manufacturer, open ports and their services.
 
-![demo](demo.svg)
+[![asciicast](https://asciinema.org/a/cKkwTJNKbJOr30l7.svg)](https://asciinema.org/a/cKkwTJNKbJOr30l7)
 
 
 - **Hardware identification** — Maps each device MAC address to a likely vendor (for example, Raspberry Pi, Ubiquiti, Apple), so unknown IPs are easier to recognize
@@ -32,16 +32,13 @@ brew install saberd/tap/nibble
 ```
 pip:
 ```bash
-pip install nibble-cli
-```
-```bash
 pipx install nibble-cli
 ```
 npm:
 ```bash
 npm install -g @saberd/nibble
 ```
-
+or run without install
 ```bash
 npx @saberd/nibble
 ```

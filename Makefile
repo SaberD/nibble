@@ -1,4 +1,4 @@
-.PHONY: all build demo update run pip npm goreleaser
+.PHONY: all build demo demo-cast upload update run pip npm goreleaser
 
 all: run
 
@@ -11,14 +11,29 @@ nibble: build
 run: nibble
 	@./nibble
 
-demo: nibble
+demo: demo-cast
+
+demo-cast: nibble
+	@if ! command -v asciinema >/dev/null 2>&1; then \
+		echo "asciinema not found. Install it with: sudo apt install asciinema"; \
+		exit 1; \
+	fi
 	@TERM=xterm-256color asciinema rec demo.cast --overwrite -c "bash -i -c 'NIBBLE_DEMO=1 PS1=\"user@machine:~/nibble\$$ \" ./nibble'"
 	@LAST=$$(tail -1 demo.cast | grep -oP '^\[\K[0-9.]+'); \
 		END=$$(awk "BEGIN {print $$LAST + 3}"); \
 		echo "[$$END, \"o\", \"\"]" >> demo.cast
-	@SVG_HEIGHT=$$(head -n 1 demo.cast | grep -oP '"height":\s*\K[0-9]+'); \
-	svg-term --in demo.cast --out demo.svg --window --height "$$SVG_HEIGHT"
-	@echo "Generated demo.svg"
+	@echo "Generated demo.cast"
+
+upload:
+	@if [ ! -f demo.cast ]; then \
+		echo "demo.cast not found. Run 'make demo' first."; \
+		exit 1; \
+	fi
+	@if ! command -v asciinema >/dev/null 2>&1; then \
+		echo "asciinema not found. Install it with: sudo apt install asciinema"; \
+		exit 1; \
+	fi
+	@asciinema upload demo.cast
 
 update:
 	@echo "Downloading IEEE OUI database..."
