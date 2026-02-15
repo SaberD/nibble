@@ -3,6 +3,7 @@ package scan
 import (
 	"fmt"
 	"net"
+	"unicode/utf8"
 	"strings"
 	"sync"
 	"time"
@@ -120,32 +121,26 @@ func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- S
 	ones, bits := ipnet.Mask.Size()
 	totalHosts := 1 << uint(bits-ones)
 
-	skipIPs := s.runMulticastDiscoveryPhase(ifaceName, ipnet, totalHosts, progressChan)
+	skipIPs := s.runNeighborDiscoveryPhase(ifaceName, ipnet, totalHosts, progressChan)
 	s.runSubnetSweepPhase(ifaceName, ipnet, totalHosts, skipIPs, progressChan)
 	close(progressChan) // Signal completion
 }
 
-// runMulticastDiscoveryPhase discovers hosts advertised over mDNS and emits
-// them immediately, returning IPs to skip during the full subnet sweep.
-func (s *NetScanner) runMulticastDiscoveryPhase(ifaceName string, subnet *net.IPNet, totalHosts int, progressChan chan<- ScanProgress) map[string]struct{} {
-	discovered := discoverSSHViaMDNS(ifaceName, subnet)
+// runNeighborDiscoveryPhase discovers hosts already visible in the ARP/neighbor
+// table and emits them immediately, returning IPs to skip during the full
+// subnet sweep.
+func (s *NetScanner) runNeighborDiscoveryPhase(ifaceName string, subnet *net.IPNet, totalHosts int, progressChan chan<- ScanProgress) map[string]struct{} {
+	discovered := DiscoverVisibleNeighbors(ifaceName, subnet)
 	skipIPs := make(map[string]struct{}, len(discovered))
-	for _, svc := range discovered {
-		skipIPs[svc.IP] = struct{}{}
+	for _, neighbor := range discovered {
+		skipIPs[neighbor.IP] = struct{}{}
 
-		hostInfo := scanHost(ifaceName, svc.IP)
+		hostInfo := scanHost(ifaceName, neighbor.IP)
 		if hostInfo == "" {
-			banner := "mDNS _ssh._tcp.local"
-			if svc.Hostname != "" {
-				banner = "mDNS " + svc.Hostname
-			}
-			port := int(svc.Port)
-			if port == 0 {
-				port = 22
-			}
+			hardware := VendorFromMAC(neighbor.MAC)
 			hostInfo = FormatHost(HostResult{
-				IP:    svc.IP,
-				Ports: []PortInfo{{Port: port, Banner: banner}},
+				IP:       neighbor.IP,
+				Hardware: hardware,
 			})
 		}
 
@@ -163,7 +158,7 @@ func (s *NetScanner) runMulticastDiscoveryPhase(ifaceName string, subnet *net.IP
 }
 
 // runSubnetSweepPhase scans the whole subnet and skips hosts already found
-// via multicast discovery.
+// via neighbor discovery.
 func (s *NetScanner) runSubnetSweepPhase(ifaceName string, subnet *net.IPNet, totalHosts int, skipIPs map[string]struct{}, progressChan chan<- ScanProgress) {
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
@@ -183,6 +178,11 @@ func (s *NetScanner) runSubnetSweepPhase(ifaceName string, subnet *net.IPNet, to
 
 	// Scan hosts with controlled concurrency
 	for ip := subnet.IP.Mask(subnet.Mask); subnet.Contains(ip); incrementIP(ip) {
+		// Skip subnet network address and IPv4 broadcast address.
+		if isSubnetNetworkOrBroadcastIPv4(ip, subnet) {
+			continue
+		}
+
 		wg.Add(1)
 		semaphore <- struct{}{} // Acquire semaphore
 
@@ -212,6 +212,29 @@ func (s *NetScanner) runSubnetSweepPhase(ifaceName string, subnet *net.IPNet, to
 	}
 
 	wg.Wait()
+}
+
+func isSubnetNetworkOrBroadcastIPv4(ip net.IP, subnet *net.IPNet) bool {
+	ip4 := ip.To4()
+	base := subnet.IP.To4()
+	mask := subnet.Mask
+	if ip4 == nil || base == nil || len(mask) != net.IPv4len {
+		return false
+	}
+
+	// Network address: host bits all zero.
+	if ip4.Equal(base.Mask(mask)) {
+		return true
+	}
+
+	// Broadcast address: host bits all one.
+	broadcast := net.IPv4(
+		base[0]|^mask[0],
+		base[1]|^mask[1],
+		base[2]|^mask[2],
+		base[3]|^mask[3],
+	)
+	return ip4.Equal(broadcast)
 }
 
 // scanHost resolves hardware via ARP, scans ports, grabs banners.
@@ -306,7 +329,7 @@ func grabServiceBanner(conn net.Conn, port int) string {
 		if err != nil || n == 0 {
 			return ""
 		}
-		response := strings.TrimSpace(string(buf[:n]))
+		response := sanitizeBannerBytes(buf[:n])
 		// Clean up newlines for display
 		response = strings.ReplaceAll(response, "\r\n", " ")
 		response = strings.ReplaceAll(response, "\n", " ")
@@ -315,6 +338,53 @@ func grabServiceBanner(conn net.Conn, port int) string {
 		}
 		return response
 	}
+}
+
+func sanitizeBannerBytes(raw []byte) string {
+	if len(raw) == 0 {
+		return ""
+	}
+
+	// Keep only first protocol line; avoids binary payload fragments (e.g. SSH KEX).
+	if idx := bytesIndexAny(raw, '\n', '\r'); idx >= 0 {
+		raw = raw[:idx]
+	}
+
+	// Replace invalid UTF-8 with '.', then keep printable ASCII-ish text.
+	s := string(raw)
+	if !utf8.ValidString(s) {
+		var cleaned []rune
+		for len(raw) > 0 {
+			r, size := utf8.DecodeRune(raw)
+			if r == utf8.RuneError && size == 1 {
+				cleaned = append(cleaned, '.')
+				raw = raw[1:]
+				continue
+			}
+			cleaned = append(cleaned, r)
+			raw = raw[size:]
+		}
+		s = string(cleaned)
+	}
+
+	var out []rune
+	for _, r := range strings.TrimSpace(s) {
+		if r >= 32 && r <= 126 {
+			out = append(out, r)
+		}
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func bytesIndexAny(b []byte, chars ...byte) int {
+	for i, c := range b {
+		for _, ch := range chars {
+			if c == ch {
+				return i
+			}
+		}
+	}
+	return -1
 }
 
 // parseHTTPServer extracts the Server header from an HTTP response

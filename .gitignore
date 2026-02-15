@@ -1,4 +1,5 @@
 nibble
+nibble.exe
 *.cast
 .claude/
 .artifacts/

@@ -97,7 +97,7 @@ async function main() {
   const pkgVersion = PACKAGE_JSON.version.replace(/^v/, '');
   const tag = `v${pkgVersion}`;
   const assetBase = `${PROJECT}_${osName}_${arch}`;
-  const ext = osName === 'windows' ? 'zip' : 'tar.gz';
+  const ext = 'tar.gz';
   const asset = `${assetBase}.${ext}`;
   const url = `https://github.com/${OWNER}/${REPO}/releases/download/${tag}/${asset}`;
 
