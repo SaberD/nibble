@@ -40,7 +40,7 @@ func interfaceIcon(name string) string {
 		strings.HasPrefix(lower, "wg") ||
 		strings.HasPrefix(lower, "tailscale") ||
 		strings.Contains(lower, "vpn") {
-		return "🛡️"
+		return "🔒"
 	}
 
 	// Wi-Fi adapters: Linux-style (wl*/wlan*) and Windows/macOS naming.
@@ -393,7 +393,8 @@ func (m model) View() string {
 		for _, addr := range iface.addrs {
 			if ipnet, ok := addr.(*net.IPNet); ok {
 				if ipnet.IP.To4() != nil {
-					addrs = append(addrs, ipnet.IP.String())
+					ones, _ := ipnet.Mask.Size()
+					addrs = append(addrs, fmt.Sprintf("%s/%d", ipnet.IP.String(), ones))
 				}
 			}
 		}

@@ -6,8 +6,10 @@ import (
 
 // GetDemoInterfaces returns fake network interfaces for demo/anonymized recordings
 func GetDemoInterfaces() []ifaceInfo {
-	_, ipnet1, _ := net.ParseCIDR("192.168.1.100/24")
-	_, ipnet2, _ := net.ParseCIDR("10.0.0.50/24")
+	ipnet1 := &net.IPNet{IP: net.ParseIP("192.168.1.100").To4(), Mask: net.CIDRMask(24, 32)}
+	ipnet2 := &net.IPNet{IP: net.ParseIP("10.0.0.50").To4(), Mask: net.CIDRMask(24, 32)}
+	ipnet3 := &net.IPNet{IP: net.ParseIP("172.17.0.1").To4(), Mask: net.CIDRMask(16, 32)}
+	ipnet4 := &net.IPNet{IP: net.ParseIP("10.8.0.2").To4(), Mask: net.CIDRMask(24, 32)}
 
 	iface1 := net.Interface{
 		Index:        2,
@@ -25,8 +27,26 @@ func GetDemoInterfaces() []ifaceInfo {
 		Flags:        net.FlagUp | net.FlagBroadcast | net.FlagRunning | net.FlagMulticast,
 	}
 
+	iface3 := net.Interface{
+		Index:        4,
+		MTU:          1500,
+		Name:         "docker0",
+		HardwareAddr: net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x01},
+		Flags:        net.FlagUp | net.FlagBroadcast | net.FlagRunning | net.FlagMulticast,
+	}
+
+	iface4 := net.Interface{
+		Index:        5,
+		MTU:          1420,
+		Name:         "wg0",
+		HardwareAddr: net.HardwareAddr{},
+		Flags:        net.FlagUp | net.FlagPointToPoint | net.FlagRunning,
+	}
+
 	return []ifaceInfo{
 		{iface: iface1, addrs: []net.Addr{ipnet1}},
 		{iface: iface2, addrs: []net.Addr{ipnet2}},
+		{iface: iface3, addrs: []net.Addr{ipnet3}},
+		{iface: iface4, addrs: []net.Addr{ipnet4}},
 	}
 }
