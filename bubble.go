@@ -114,6 +114,25 @@ func listenForProgress(progressChan <-chan scan.ScanProgress) tea.Cmd {
 	}
 }
 
+func totalScanHosts(ipnet *net.IPNet) int {
+	ones, bits := ipnet.Mask.Size()
+	hostBits := bits - ones
+
+	// Non-IPv4 fallback keeps prior behavior.
+	if bits != 32 {
+		return 1 << uint(hostBits)
+	}
+
+	switch {
+	case hostBits <= 0:
+		return 1
+	case hostBits == 1:
+		return 2
+	default:
+		return (1 << uint(hostBits)) - 2
+	}
+}
+
 func performScan(scanner scan.Scanner, ifaceName string, targetAddr string, progressChan chan scan.ScanProgress) tea.Cmd {
 	return func() tea.Msg {
 		go scanner.ScanNetwork(ifaceName, targetAddr, progressChan)
@@ -220,8 +239,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Calculate total hosts for progress
 			_, ipnet, _ := net.ParseCIDR(targetAddr)
-			ones, bits := ipnet.Mask.Size()
-			m.totalHosts = 1 << uint(bits-ones)
+			m.totalHosts = totalScanHosts(ipnet)
 
 			m.scanning = true
 			m.errorMsg = ""
@@ -234,6 +252,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case scanProgressMsg:
 		m.scannedCount = msg.Scanned
+		if msg.Total > 0 {
+			m.totalHosts = msg.Total
+		}
 		if msg.Host != "" {
 			m.foundHosts = append(m.foundHosts, msg.Host)
 		}

@@ -110,6 +110,27 @@ type NetScanner struct{}
 // DemoScanner simulates scanning with fake host data.
 type DemoScanner struct{}
 
+// totalScanHosts returns the number of IPv4 hosts that will actually be scanned.
+// For normal subnets, excludes network+broadcast. For /31 and /32, keeps all addresses.
+func totalScanHosts(ipnet *net.IPNet) int {
+	ones, bits := ipnet.Mask.Size()
+	hostBits := bits - ones
+
+	// Non-IPv4 fallback keeps prior behavior.
+	if bits != 32 {
+		return 1 << uint(hostBits)
+	}
+
+	switch {
+	case hostBits <= 0:
+		return 1
+	case hostBits == 1:
+		return 2
+	default:
+		return (1 << uint(hostBits)) - 2
+	}
+}
+
 // ScanNetwork scans a real subnet with controlled concurrency for smooth progress.
 func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- ScanProgress) {
 	_, ipnet, err := net.ParseCIDR(subnet)
@@ -117,9 +138,7 @@ func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- S
 		return
 	}
 
-	// Calculate total hosts
-	ones, bits := ipnet.Mask.Size()
-	totalHosts := 1 << uint(bits-ones)
+	totalHosts := totalScanHosts(ipnet)
 
 	skipIPs := s.runNeighborDiscoveryPhase(ifaceName, ipnet, totalHosts, progressChan)
 	s.runSubnetSweepPhase(ifaceName, ipnet, totalHosts, skipIPs, progressChan)
@@ -410,9 +429,7 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 		return
 	}
 
-	// Calculate total hosts
-	ones, bits := ipnet.Mask.Size()
-	totalHosts := 1 << uint(bits-ones)
+	totalHosts := totalScanHosts(ipnet)
 
 	// Pick which demo hosts belong to this subnet, resolve MAC via OUI
 	var subnetHosts []HostResult
