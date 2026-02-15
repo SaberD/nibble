@@ -92,6 +92,8 @@ type model struct {
 	foundHosts    []string
 	scannedCount  int
 	totalHosts    int
+	neighborSeen  int
+	neighborTotal int
 	progressChan  chan scan.ScanProgress
 	windowWidth   int
 	windowHeight  int
@@ -245,6 +247,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.errorMsg = ""
 			m.foundHosts = []string{}
 			m.scannedCount = 0
+			m.neighborSeen = 0
+			m.neighborTotal = 0
 			m.progressChan = make(chan scan.ScanProgress, 256)
 
 			return m, performScan(m.scanner, m.selectedIface.iface.Name, targetAddr, m.progressChan)
@@ -254,6 +258,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.scannedCount = msg.Scanned
 		if msg.Total > 0 {
 			m.totalHosts = msg.Total
+		}
+		if msg.Phase == "neighbors" {
+			m.neighborSeen = msg.PhaseScanned
+			m.neighborTotal = msg.PhaseTotal
+		}
+		if msg.Phase == "sweep" {
+			m.scannedCount = msg.PhaseScanned
+			if msg.PhaseTotal > 0 {
+				m.totalHosts = msg.PhaseTotal
+			}
 		}
 		if msg.Host != "" {
 			m.foundHosts = append(m.foundHosts, msg.Host)
@@ -288,22 +302,22 @@ func (m model) View() string {
 			}
 		}
 
-		// Progress bar
-		percent := 0.0
+		// Show only sweep progress bar; neighbor discovery is summarized as text.
+		sweepPercent := 0.0
 		if m.totalHosts > 0 {
-			percent = float64(m.scannedCount) / float64(m.totalHosts)
+			sweepPercent = float64(m.scannedCount) / float64(m.totalHosts)
 		}
-		m.progress.Width = 50
-		b.WriteString(m.progress.ViewAs(percent) + "\n")
 
-		// Stats
+		m.progress.Width = 50
 		statsStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-		b.WriteString(statsStyle.Render(fmt.Sprintf("%d/%d", m.scannedCount, m.totalHosts)) + "\n")
+		b.WriteString(statsStyle.Render(fmt.Sprintf("Neighbor discovery %d/%d", m.neighborSeen, m.neighborTotal)) + "\n")
+		b.WriteString(statsStyle.Render(fmt.Sprintf("Subnet sweep %d/%d", m.scannedCount, m.totalHosts)) + "\n")
+		b.WriteString(m.progress.ViewAs(sweepPercent) + "\n")
 
 		// Found hosts
 		if len(m.foundHosts) > 0 {
 			foundStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Bold(true)
-			b.WriteString(foundStyle.Render(fmt.Sprintf("✓ %d active:", len(m.foundHosts))) + "\n")
+			b.WriteString(foundStyle.Render(fmt.Sprintf("%d active:", len(m.foundHosts))) + "\n")
 
 			hostStyle := lipgloss.NewStyle().Bold(true)
 			portStyle := lipgloss.NewStyle()
