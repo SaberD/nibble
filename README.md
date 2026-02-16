@@ -24,11 +24,11 @@ you may have to restart terminal to run `nibble` after install.
 
 go:
 ```bash
-go install github.com/saberd/nibble@latest
+go install github.com/backendsystems/nibble@latest
 ```
 brew:
 ```bash
-brew install saberd/tap/nibble
+brew install backendsystems/tap/nibble
 ```
 pip:
 ```bash
@@ -36,11 +36,11 @@ pipx install nibble-cli
 ```
 npm:
 ```bash
-npm install -g @saberd/nibble
+npm install -g @backendsystems/nibble
 ```
 or run without install
 ```bash
-npx @saberd/nibble
+npx @backendsystems/nibble
 ```
 
 ## Usage

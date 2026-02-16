@@ -17,7 +17,7 @@ import zipfile
 from importlib import metadata
 from pathlib import Path
 
-REPO = "saberd/nibble"
+REPO = "backendsystems/nibble"
 PROJECT = "nibble"
 DIST_NAME = "nibble-cli"
 

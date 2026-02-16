@@ -19,17 +19,17 @@ archives:
       - README.md
 release:
   github:
-    owner: saberd
+    owner: backendsystems
     name: nibble
   draft: false
   prerelease: false
 homebrew_casks:
   - name: nibble
     repository:
-      owner: saberd
+      owner: backendsystems
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/saberd/nibble"
+    homepage: "https://github.com/backendsystems/nibble"
     description: "Fast local network scanner with hardware identification and a terminal UI"
     license: "MIT"
     commit_author:

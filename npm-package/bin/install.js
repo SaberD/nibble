@@ -7,7 +7,7 @@ const https = require('https');
 const { spawnSync } = require('child_process');
 
 const PROJECT = 'nibble';
-const OWNER = 'saberd';
+const OWNER = 'backendsystems';
 const REPO = 'nibble';
 const ROOT = path.resolve(__dirname, '..');
 const VENDOR_DIR = path.join(ROOT, 'vendor');

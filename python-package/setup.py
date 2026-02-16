@@ -22,7 +22,7 @@ setup(
     long_description_content_type="text/markdown",
     author="saberd",
     author_email="your-email@example.com",
-    url="https://github.com/saberd/nibble",
+    url="https://github.com/backendsystems/nibble",
     py_modules=["nibble_installer"],
     entry_points={
         "console_scripts": [
