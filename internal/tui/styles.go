@@ -1,10 +1,10 @@
-package main
+package tui
 
 import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Styles for the Nibble TUI - Neo-brutalist theme
+// Styles for the Nibble TUI
 var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).

@@ -1,4 +1,4 @@
-package main
+package tui
 
 import (
 	"fmt"
@@ -11,6 +11,23 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+func Run(scanner scan.Scanner, ifaces []net.Interface, addrsByIface map[string][]net.Addr) error {
+	initialModel := model{
+		interfaces:   ifaces,
+		addrsByIface: addrsByIface,
+		scanner:      scanner,
+		cursor:       0,
+		progress: progress.New(
+			progress.WithScaledGradient("#FFD700", "#B8B000"),
+		),
+		selected: false,
+	}
+
+	prog := tea.NewProgram(initialModel)
+	_, err := prog.Run()
+	return err
+}
 
 func interfaceIcon(name string) string {
 	lower := strings.ToLower(name)

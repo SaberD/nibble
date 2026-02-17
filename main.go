@@ -8,9 +8,7 @@ import (
 
 	"github.com/backendsystems/nibble/internal/demo"
 	"github.com/backendsystems/nibble/internal/scan"
-
-	"github.com/charmbracelet/bubbles/progress"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/backendsystems/nibble/internal/tui"
 )
 
 func main() {
@@ -52,23 +50,7 @@ func main() {
 		scanner = &scan.NetScanner{}
 	}
 
-	// Initialize the model
-	initialModel := model{
-		interfaces:   ifaces,
-		addrsByIface: addrsByIface,
-		scanner:      scanner,
-		cursor:       0,
-		progress: progress.New(
-			progress.WithScaledGradient("#FFD700", "#B8B000"),
-		),
-		selected: false,
-	}
-
-	// Start Bubble Tea in the normal terminal screen so the final scan
-	// output remains visible and the shell prompt returns directly below it.
-	prog := tea.NewProgram(initialModel)
-	_, err := prog.Run()
-	if err != nil {
+	if err := tui.Run(scanner, ifaces, addrsByIface); err != nil {
 		fmt.Printf("Error starting the program: %v", err)
 		os.Exit(1)
 	}
