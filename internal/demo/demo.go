@@ -17,7 +17,6 @@ func GetInterfaces() []InterfaceInfo {
 
 	iface1 := net.Interface{
 		Index:        2,
-		MTU:          1500,
 		Name:         "eth0",
 		HardwareAddr: net.HardwareAddr{0x08, 0x00, 0x27, 0x00, 0x00, 0x00},
 		Flags:        net.FlagUp | net.FlagBroadcast | net.FlagRunning | net.FlagMulticast,
@@ -25,7 +24,6 @@ func GetInterfaces() []InterfaceInfo {
 
 	iface2 := net.Interface{
 		Index:        3,
-		MTU:          1500,
 		Name:         "wlan0",
 		HardwareAddr: net.HardwareAddr{0x08, 0x00, 0x27, 0x00, 0x00, 0x01},
 		Flags:        net.FlagUp | net.FlagBroadcast | net.FlagRunning | net.FlagMulticast,
@@ -33,7 +31,6 @@ func GetInterfaces() []InterfaceInfo {
 
 	iface3 := net.Interface{
 		Index:        4,
-		MTU:          1500,
 		Name:         "docker0",
 		HardwareAddr: net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x01},
 		Flags:        net.FlagUp | net.FlagBroadcast | net.FlagRunning | net.FlagMulticast,
@@ -41,7 +38,6 @@ func GetInterfaces() []InterfaceInfo {
 
 	iface4 := net.Interface{
 		Index:        5,
-		MTU:          1420,
 		Name:         "wg0",
 		HardwareAddr: net.HardwareAddr{},
 		Flags:        net.FlagUp | net.FlagPointToPoint | net.FlagRunning,
