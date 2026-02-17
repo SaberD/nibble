@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/backendsystems/nibble/internal/demo"
 	"github.com/backendsystems/nibble/internal/scan"
 
 	"github.com/charmbracelet/bubbles/progress"
@@ -19,7 +20,7 @@ func main() {
 
 	if demoMode {
 		// Use fake network interfaces for demo
-		ifaces = GetDemoInterfaces()
+		ifaces = getDemoInterfaces()
 	} else {
 		// Get real network interfaces
 		interfaces, err := net.Interfaces()
@@ -63,6 +64,18 @@ func main() {
 		fmt.Printf("Error starting the program: %v", err)
 		os.Exit(1)
 	}
+}
+
+func getDemoInterfaces() []ifaceInfo {
+	demoIfaces := demo.GetInterfaces()
+	ifaces := make([]ifaceInfo, 0, len(demoIfaces))
+	for _, demoIface := range demoIfaces {
+		ifaces = append(ifaces, ifaceInfo{
+			iface: demoIface.Iface,
+			addrs: demoIface.Addrs,
+		})
+	}
+	return ifaces
 }
 
 // getRealInterfaces extracts valid IPv4 network interfaces

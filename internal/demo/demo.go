@@ -1,11 +1,15 @@
-package main
+// Package demo contains fake interface data used only for creating demo recording gif using bubble tea vhs
+package demo
 
-import (
-	"net"
-)
+import "net"
 
-// GetDemoInterfaces returns fake network interfaces for demo/anonymized recordings
-func GetDemoInterfaces() []ifaceInfo {
+type InterfaceInfo struct {
+	Iface net.Interface
+	Addrs []net.Addr
+}
+
+// GetInterfaces returns fake network interfaces for demo/anonymized recordings.
+func GetInterfaces() []InterfaceInfo {
 	ipnet1 := &net.IPNet{IP: net.ParseIP("192.168.1.100").To4(), Mask: net.CIDRMask(24, 32)}
 	ipnet2 := &net.IPNet{IP: net.ParseIP("10.0.0.50").To4(), Mask: net.CIDRMask(24, 32)}
 	ipnet3 := &net.IPNet{IP: net.ParseIP("172.17.0.1").To4(), Mask: net.CIDRMask(16, 32)}
@@ -43,10 +47,10 @@ func GetDemoInterfaces() []ifaceInfo {
 		Flags:        net.FlagUp | net.FlagPointToPoint | net.FlagRunning,
 	}
 
-	return []ifaceInfo{
-		{iface: iface1, addrs: []net.Addr{ipnet1}},
-		{iface: iface2, addrs: []net.Addr{ipnet2}},
-		{iface: iface3, addrs: []net.Addr{ipnet3}},
-		{iface: iface4, addrs: []net.Addr{ipnet4}},
+	return []InterfaceInfo{
+		{Iface: iface1, Addrs: []net.Addr{ipnet1}},
+		{Iface: iface2, Addrs: []net.Addr{ipnet2}},
+		{Iface: iface3, Addrs: []net.Addr{ipnet3}},
+		{Iface: iface4, Addrs: []net.Addr{ipnet4}},
 	}
 }
