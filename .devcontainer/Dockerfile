@@ -10,6 +10,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+        ffmpeg \
         libpcap-dev \
         nodejs \
         npm \
@@ -28,7 +29,8 @@ RUN curl -sL https://github.com/goreleaser/goreleaser/releases/latest/download/g
     && mv goreleaser /usr/local/bin/goreleaser
 
 RUN npm install -g svg-term-cli \
-    && pip install --break-system-packages asciinema
+    && go install github.com/charmbracelet/vhs@latest \
+    && cp /go/bin/vhs /usr/local/bin/vhs
 
 USER ${USERNAME}
 WORKDIR /workspace
