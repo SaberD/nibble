@@ -3,7 +3,7 @@ Nibble is a CLI tool for local network scanning that focuses on speed and ease o
 
 Select a network interface, and Nibble scans your local subnet. Lists hosts, hardware manufacturer, open ports and their services.
 
-![Nibble demo](demo.gif)
+![Nibble demo](demo.gif "Made with Bubble Tea VHS")
 
 
 - **Hardware identification** — Maps each device MAC address to a likely vendor (for example, Raspberry Pi, Ubiquiti, Apple), so unknown IPs are easier to recognize

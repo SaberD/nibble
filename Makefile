@@ -1,4 +1,4 @@
-.PHONY: all build demo demo-gif update run pip npm goreleaser
+.PHONY: all build demo update run pip npm goreleaser
 
 all: run
 
@@ -11,14 +11,16 @@ nibble: build
 run: nibble
 	@./nibble
 
-demo: demo-gif
-
-demo-gif: nibble
+demo: nibble
 	@if ! command -v vhs >/dev/null 2>&1; then \
 		echo "vhs not found. Install it from https://github.com/charmbracelet/vhs"; \
 		exit 1; \
 	fi
-	@vhs demo.tape
+	@if ! command -v ttyd >/dev/null 2>&1; then \
+		echo "ttyd is not installed. Install it from: https://github.com/tsl0922/ttyd"; \
+		exit 1; \
+	fi
+	@VHS_NO_SANDBOX=1 vhs demo.tape
 	@echo "Generated demo.gif"
 
 update:
