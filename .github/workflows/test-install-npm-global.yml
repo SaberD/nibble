@@ -80,9 +80,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:NIBBLE_DEMO = "1"
           $log = Join-Path $env:RUNNER_TEMP "nibble-npm.log"
-          $proc = Start-Process -FilePath "nibble" -RedirectStandardOutput $log -RedirectStandardError $log -PassThru
+          $cmd = "set NIBBLE_DEMO=1 && nibble > `"$log`" 2>&1"
+          $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $cmd -PassThru
           Start-Sleep -Seconds 3
           if ($proc.HasExited) {
             if (Test-Path $log) { Get-Content $log }

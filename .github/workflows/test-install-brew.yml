@@ -9,6 +9,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - os: ubuntu
+            arch: x64
+            runs_on: ubuntu-24.04
+          - os: ubuntu
+            arch: arm64
+            runs_on: ubuntu-24.04-arm
           - os: macos
             arch: x64
             runs_on: macos-15-intel
@@ -17,7 +23,21 @@ jobs:
             runs_on: macos-15
     runs-on: ${{ matrix.runs_on }}
     steps:
-      - name: Install nibble with brew
+      - name: Install nibble with brew (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v brew >/dev/null 2>&1; then
+            NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          fi
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew update
+          brew install saberd/tap/nibble
+          echo "$(/home/linuxbrew/.linuxbrew/bin/brew --prefix)/bin" >> "$GITHUB_PATH"
+
+      - name: Install nibble with brew (macOS)
+        if: runner.os == 'macOS'
         shell: bash
         run: |
           set -euo pipefail
