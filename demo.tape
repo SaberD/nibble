@@ -8,7 +8,7 @@ Set Height 570
 Set Shell "bash"
 Set TypingSpeed 0ms
 
-Type "./nibble"
+Type "./nibble --demo"
 Enter
 Sleep 1s
 Right

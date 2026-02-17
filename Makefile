@@ -20,7 +20,7 @@ demo: nibble
 		echo "ttyd is not installed. Install it from: https://github.com/tsl0922/ttyd"; \
 		exit 1; \
 	fi
-	@TERM=xterm-256color COLORTERM=truecolor NIBBLE_DEMO=1 VHS_NO_SANDBOX=1 vhs demo.tape
+	@TERM=xterm-256color COLORTERM=truecolor VHS_NO_SANDBOX=1 vhs demo.tape
 	@echo "Generated demo.gif"
 
 update:

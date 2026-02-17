@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -13,23 +14,31 @@ import (
 )
 
 func main() {
-	// Check for demo mode (for anonymized recordings)
-	demoMode := os.Getenv("NIBBLE_DEMO") == "1"
+	// Enable demo mode for anonymized recordings.
+	var demoMode bool
+	flag.BoolVar(&demoMode, "demo", false, "use demo interfaces")
+	flag.Parse()
 
-	var ifaces []ifaceInfo
+	var ifaces []net.Interface
+	var addrsByIface map[string][]net.Addr
 
 	if demoMode {
 		// Use fake network interfaces for demo
-		ifaces = getDemoInterfaces()
+		var err error
+		ifaces, addrsByIface, err = demo.GetInterfaces()
+		if err != nil {
+			fmt.Println("Error creating demo interfaces:", err)
+			os.Exit(1)
+		}
 	} else {
 		// Get real network interfaces
-		interfaces, err := net.Interfaces()
+		sysIfaces, err := net.Interfaces()
 		if err != nil {
 			fmt.Println("Error getting network interfaces:", err)
 			os.Exit(1)
 		}
 
-		ifaces = getRealInterfaces(interfaces)
+		ifaces, addrsByIface = getRealInterfaces(sysIfaces)
 	}
 
 	if len(ifaces) == 0 {
@@ -37,7 +46,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create the appropriate scanner for real or demo mode
 	var scanner scan.Scanner
 	if demoMode {
 		scanner = &scan.DemoScanner{}
@@ -47,9 +55,10 @@ func main() {
 
 	// Initialize the model
 	initialModel := model{
-		interfaces: ifaces,
-		scanner:    scanner,
-		cursor:     0,
+		interfaces:   ifaces,
+		addrsByIface: addrsByIface,
+		scanner:      scanner,
+		cursor:       0,
 		progress: progress.New(
 			progress.WithScaledGradient("#FFD700", "#B8B000"), // Bright yellow to muted gold
 		),
@@ -66,22 +75,11 @@ func main() {
 	}
 }
 
-func getDemoInterfaces() []ifaceInfo {
-	demoIfaces := demo.GetInterfaces()
-	ifaces := make([]ifaceInfo, 0, len(demoIfaces))
-	for _, demoIface := range demoIfaces {
-		ifaces = append(ifaces, ifaceInfo{
-			iface: demoIface.Iface,
-			addrs: demoIface.Addrs,
-		})
-	}
-	return ifaces
-}
-
 // getRealInterfaces extracts valid IPv4 network interfaces
-func getRealInterfaces(interfaces []net.Interface) []ifaceInfo {
-	var ifaces []ifaceInfo
-	for _, iface := range interfaces {
+func getRealInterfaces(sysIfaces []net.Interface) ([]net.Interface, map[string][]net.Addr) {
+	ifaces := make([]net.Interface, 0, len(sysIfaces))
+	addrsByIface := make(map[string][]net.Addr, len(sysIfaces))
+	for _, iface := range sysIfaces {
 		// Skip loopback interfaces
 		if iface.Flags&net.FlagLoopback != 0 {
 			continue
@@ -117,7 +115,8 @@ func getRealInterfaces(interfaces []net.Interface) []ifaceInfo {
 			continue
 		}
 
-		ifaces = append(ifaces, ifaceInfo{iface: iface, addrs: addrs})
+		ifaces = append(ifaces, iface)
+		addrsByIface[iface.Name] = addrs
 	}
-	return ifaces
+	return ifaces, addrsByIface
 }

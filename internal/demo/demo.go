@@ -3,50 +3,36 @@ package demo
 
 import "net"
 
-type InterfaceInfo struct {
-	Iface net.Interface
-	Addrs []net.Addr
+// GetInterfaces returns fake network interfaces for demo/anonymized recordings.
+func GetInterfaces() ([]net.Interface, map[string][]net.Addr, error) {
+	specs := []struct {
+		name string
+		cidr string
+	}{
+		{name: "eth0", cidr: "192.168.1.100/24"},
+		{name: "wlan0", cidr: "10.0.0.50/24"},
+		{name: "docker0", cidr: "172.17.0.1/16"},
+		{name: "wg0", cidr: "10.8.0.2/24"},
+	}
+
+	ifaces := make([]net.Interface, 0, len(specs))
+	addrsByIface := make(map[string][]net.Addr, len(specs))
+	for _, s := range specs {
+		iface, addrs, err := newInterface(s.name, s.cidr)
+		if err != nil {
+			return nil, nil, err
+		}
+		ifaces = append(ifaces, iface)
+		addrsByIface[iface.Name] = addrs
+	}
+
+	return ifaces, addrsByIface, nil
 }
 
-// GetInterfaces returns fake network interfaces for demo/anonymized recordings.
-func GetInterfaces() []InterfaceInfo {
-	ipnet1 := &net.IPNet{IP: net.ParseIP("192.168.1.100").To4(), Mask: net.CIDRMask(24, 32)}
-	ipnet2 := &net.IPNet{IP: net.ParseIP("10.0.0.50").To4(), Mask: net.CIDRMask(24, 32)}
-	ipnet3 := &net.IPNet{IP: net.ParseIP("172.17.0.1").To4(), Mask: net.CIDRMask(16, 32)}
-	ipnet4 := &net.IPNet{IP: net.ParseIP("10.8.0.2").To4(), Mask: net.CIDRMask(24, 32)}
-
-	iface1 := net.Interface{
-		Index:        2,
-		Name:         "eth0",
-		HardwareAddr: net.HardwareAddr{0x08, 0x00, 0x27, 0x00, 0x00, 0x00},
-		Flags:        net.FlagUp | net.FlagBroadcast | net.FlagRunning | net.FlagMulticast,
+func newInterface(name, cidr string) (net.Interface, []net.Addr, error) {
+	_, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return net.Interface{}, nil, err
 	}
-
-	iface2 := net.Interface{
-		Index:        3,
-		Name:         "wlan0",
-		HardwareAddr: net.HardwareAddr{0x08, 0x00, 0x27, 0x00, 0x00, 0x01},
-		Flags:        net.FlagUp | net.FlagBroadcast | net.FlagRunning | net.FlagMulticast,
-	}
-
-	iface3 := net.Interface{
-		Index:        4,
-		Name:         "docker0",
-		HardwareAddr: net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x01},
-		Flags:        net.FlagUp | net.FlagBroadcast | net.FlagRunning | net.FlagMulticast,
-	}
-
-	iface4 := net.Interface{
-		Index:        5,
-		Name:         "wg0",
-		HardwareAddr: net.HardwareAddr{},
-		Flags:        net.FlagUp | net.FlagPointToPoint | net.FlagRunning,
-	}
-
-	return []InterfaceInfo{
-		{Iface: iface1, Addrs: []net.Addr{ipnet1}},
-		{Iface: iface2, Addrs: []net.Addr{ipnet2}},
-		{Iface: iface3, Addrs: []net.Addr{ipnet3}},
-		{Iface: iface4, Addrs: []net.Addr{ipnet4}},
-	}
+	return net.Interface{Name: name}, []net.Addr{ipnet}, nil
 }

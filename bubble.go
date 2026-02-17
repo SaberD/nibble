@@ -12,11 +12,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type ifaceInfo struct {
-	iface net.Interface
-	addrs []net.Addr
-}
-
 func interfaceIcon(name string) string {
 	lower := strings.ToLower(name)
 
@@ -61,29 +56,14 @@ func interfaceIcon(name string) string {
 	return "🌐"
 }
 
-// Implement list.Item interface for ifaceInfo
-func (i ifaceInfo) FilterValue() string { return i.iface.Name }
-func (i ifaceInfo) Title() string {
-	return interfaceIcon(i.iface.Name) + " " + i.iface.Name
-}
-func (i ifaceInfo) Description() string {
-	var addrs []string
-	for _, addr := range i.addrs {
-		if ipnet, ok := addr.(*net.IPNet); ok {
-			if ipnet.IP.To4() != nil {
-				addrs = append(addrs, ipnet.String())
-			}
-		}
-	}
-	return strings.Join(addrs, ", ")
-}
-
 type model struct {
 	progress      progress.Model
-	interfaces    []ifaceInfo
+	interfaces    []net.Interface
+	addrsByIface  map[string][]net.Addr
 	scanner       scan.Scanner
 	cursor        int
-	selectedIface ifaceInfo
+	selectedIface net.Interface
+	selectedAddrs []net.Addr
 	selected      bool
 	errorMsg      string
 	showHelp      bool
@@ -216,15 +196,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			m.selected = true
 			m.selectedIface = m.interfaces[m.cursor]
+			m.selectedAddrs = m.addrsByIface[m.selectedIface.Name]
 
-			if len(m.selectedIface.addrs) == 0 {
-				m.errorMsg = fmt.Sprintf("interface %s has no IP addresses", m.selectedIface.iface.Name)
+			if len(m.selectedAddrs) == 0 {
+				m.errorMsg = fmt.Sprintf("interface %s has no IP addresses", m.selectedIface.Name)
 				m.selected = false
 				return m, nil
 			}
 
 			var targetAddr string
-			for _, addr := range m.selectedIface.addrs {
+			for _, addr := range m.selectedAddrs {
 				if ipnet, ok := addr.(*net.IPNet); ok {
 					if ipnet.IP.To4() != nil {
 						targetAddr = ipnet.String()
@@ -234,7 +215,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			if targetAddr == "" {
-				m.errorMsg = fmt.Sprintf("interface %s has no valid IPv4 addresses", m.selectedIface.iface.Name)
+				m.errorMsg = fmt.Sprintf("interface %s has no valid IPv4 addresses", m.selectedIface.Name)
 				m.selected = false
 				return m, nil
 			}
@@ -251,7 +232,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.neighborTotal = 0
 			m.progressChan = make(chan scan.ScanProgress, 256)
 
-			return m, performScan(m.scanner, m.selectedIface.iface.Name, targetAddr, m.progressChan)
+			return m, performScan(m.scanner, m.selectedIface.Name, targetAddr, m.progressChan)
 		}
 
 	case scanProgressMsg:
@@ -288,11 +269,11 @@ func (m model) View() string {
 		var b strings.Builder
 
 		// Header
-		b.WriteString(titleStyle.Render(fmt.Sprintf("Scanning: %s", m.selectedIface.iface.Name)))
+		b.WriteString(titleStyle.Render(fmt.Sprintf("Scanning: %s", m.selectedIface.Name)))
 		b.WriteString("\n")
 
 		// Network info
-		for _, addr := range m.selectedIface.addrs {
+		for _, addr := range m.selectedAddrs {
 			if ipnet, ok := addr.(*net.IPNet); ok {
 				if ipnet.IP.To4() != nil {
 					infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
@@ -379,7 +360,7 @@ func (m model) View() string {
 		var cardContent strings.Builder
 
 		// Icon and name
-		name := iface.iface.Name
+		name := iface.Name
 		icon := interfaceIcon(name)
 
 		nameStyle := lipgloss.NewStyle().Bold(true)
@@ -390,7 +371,7 @@ func (m model) View() string {
 
 		// IP addresses
 		var addrs []string
-		for _, addr := range iface.addrs {
+		for _, addr := range m.addrsByIface[name] {
 			if ipnet, ok := addr.(*net.IPNet); ok {
 				if ipnet.IP.To4() != nil {
 					ones, _ := ipnet.Mask.Size()
