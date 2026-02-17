@@ -30,7 +30,8 @@ RUN curl -sL https://github.com/goreleaser/goreleaser/releases/latest/download/g
 
 RUN npm install -g svg-term-cli \
     && go install github.com/charmbracelet/vhs@latest \
-    && cp /go/bin/vhs /usr/local/bin/vhs
+    && cp /go/bin/vhs /usr/local/bin/vhs \
+    && chown -R ${USERNAME}:${USERNAME} /go/pkg /go/bin
 
 USER ${USERNAME}
 WORKDIR /workspace
