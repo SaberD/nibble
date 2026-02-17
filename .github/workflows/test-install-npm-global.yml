@@ -59,7 +59,10 @@ jobs:
           $prefix | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Install nibble with npm -g
-        run: npm install -g @saberd/nibble
+        run: npm install -g @backendsystems/nibble
+
+      - name: Show installed npm package version
+        run: npm list -g @backendsystems/nibble --depth=0
 
       - name: Smoke test nibble startup (Unix)
         if: runner.os != 'Windows'
