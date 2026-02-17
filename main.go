@@ -5,7 +5,7 @@ import (
 	"net"
 	"os"
 
-	"nibble/internal/scan"
+	"github.com/backendsystems/nibble/internal/scan"
 
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"

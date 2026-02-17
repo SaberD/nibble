@@ -1,4 +1,4 @@
-module nibble
+module github.com/backendsystems/nibble
 
 go 1.24.2
 

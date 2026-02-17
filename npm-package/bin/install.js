@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const https = require('https');
+const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 
 const PROJECT = 'nibble';
@@ -56,6 +57,90 @@ function download(url, outFile) {
   });
 }
 
+function downloadText(url) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        return resolve(downloadText(res.headers.location));
+      }
+
+      if (res.statusCode !== 200) {
+        res.resume();
+        return reject(new Error(`download failed (${res.statusCode}): ${url}`));
+      }
+
+      let data = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      res.on('end', () => resolve(data));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+  });
+}
+
+function parseChecksums(text) {
+  const checksums = new Map();
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue;
+    }
+
+    const match = trimmed.match(/^([a-fA-F0-9]{64})\s+\*?(.+)$/);
+    if (!match) {
+      continue;
+    }
+    checksums.set(match[2].trim(), match[1].toLowerCase());
+  }
+  return checksums;
+}
+
+function sha256File(filePath) {
+  const hash = crypto.createHash('sha256');
+  hash.update(fs.readFileSync(filePath));
+  return hash.digest('hex');
+}
+
+async function verifyArchiveChecksum(urlBase, archivePath, archiveName, version) {
+  const checksumCandidates = [
+    'checksums.txt',
+    `${PROJECT}_${version}_checksums.txt`,
+  ];
+
+  let checksumFile = '';
+  let checksumName = '';
+  for (const candidate of checksumCandidates) {
+    try {
+      checksumFile = await downloadText(`${urlBase}/${candidate}`);
+      checksumName = candidate;
+      break;
+    } catch (err) {
+      if (!String(err.message).includes('download failed (404)')) {
+        throw err;
+      }
+    }
+  }
+
+  if (!checksumFile) {
+    throw new Error(`no checksum file found (tried: ${checksumCandidates.join(', ')})`);
+  }
+
+  const checksums = parseChecksums(checksumFile);
+  const expected = checksums.get(archiveName);
+  if (!expected) {
+    throw new Error(`checksum for ${archiveName} not found in ${checksumName}`);
+  }
+
+  const actual = sha256File(archivePath);
+  if (actual !== expected) {
+    throw new Error(`checksum mismatch for ${archiveName}`);
+  }
+}
+
 function run(cmd, args) {
   const result = spawnSync(cmd, args, { stdio: 'inherit' });
   if (result.status !== 0) {
@@ -99,7 +184,8 @@ async function main() {
   const assetBase = `${PROJECT}_${osName}_${arch}`;
   const ext = 'tar.gz';
   const asset = `${assetBase}.${ext}`;
-  const url = `https://github.com/${OWNER}/${REPO}/releases/download/${tag}/${asset}`;
+  const urlBase = `https://github.com/${OWNER}/${REPO}/releases/download/${tag}`;
+  const url = `${urlBase}/${asset}`;
 
   const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nibble-npm-'));
   const archivePath = path.join(cacheDir, asset);
@@ -107,6 +193,7 @@ async function main() {
   try {
     console.log(`Downloading ${asset} from ${url}`);
     await download(url, archivePath);
+    await verifyArchiveChecksum(urlBase, archivePath, asset, pkgVersion);
     installFromArchive(archivePath, osName);
     console.log('Installed nibble binary successfully');
   } finally {

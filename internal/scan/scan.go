@@ -476,14 +476,22 @@ func parseHTTPServer(response string) string {
 	for _, line := range strings.Split(response, "\r\n") {
 		lower := strings.ToLower(line)
 		if strings.HasPrefix(lower, "server:") {
-			return strings.TrimSpace(line[7:])
+			return normalizeBannerForDisplay(strings.TrimSpace(line[7:]))
 		}
 	}
 	// No Server header, try to return the status line
 	if idx := strings.Index(response, "\r\n"); idx > 0 {
-		return response[:idx]
+		return normalizeBannerForDisplay(response[:idx])
 	}
-	return ""
+	return normalizeBannerForDisplay(response)
+}
+
+func normalizeBannerForDisplay(s string) string {
+	clean := sanitizeBannerBytes([]byte(s))
+	if len(clean) > 80 {
+		clean = clean[:80]
+	}
+	return clean
 }
 
 // ScanNetwork simulates a scan with fake hosts for demo mode.

@@ -1,0 +1,43 @@
+name: Test Install via Homebrew
+
+on:
+  workflow_dispatch:
+
+jobs:
+  brew-install:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos
+            arch: x64
+            runs_on: macos-15-intel
+          - os: macos
+            arch: arm64
+            runs_on: macos-15
+    runs-on: ${{ matrix.runs_on }}
+    steps:
+      - name: Install nibble with brew
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew update
+          brew install saberd/tap/nibble
+
+      - name: Smoke test nibble startup
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="${RUNNER_TEMP}/nibble-brew.log"
+          if script -q /dev/null bash -lc 'exit 0' >/dev/null 2>&1; then
+            script -q /dev/null bash -lc 'NIBBLE_DEMO=1 nibble' >"$log" 2>&1 &
+          else
+            script -q -c 'NIBBLE_DEMO=1 nibble' /dev/null >"$log" 2>&1 &
+          fi
+          pid=$!
+          sleep 3
+          if ! kill -0 "$pid" 2>/dev/null; then
+            cat "$log"
+            exit 1
+          fi
+          kill "$pid" || true

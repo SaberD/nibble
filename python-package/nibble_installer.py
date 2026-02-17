@@ -14,6 +14,8 @@ import tempfile
 import urllib.error
 import urllib.request
 import zipfile
+import hashlib
+import re
 from importlib import metadata
 from pathlib import Path
 
@@ -74,6 +76,64 @@ def _download_asset(url, out_path):
             return False
         raise
 
+def _download_text(url):
+    try:
+        with urllib.request.urlopen(url) as resp:
+            return resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+
+def _parse_checksums(text):
+    checksums = {}
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        match = re.match(r"^([A-Fa-f0-9]{64})\s+\*?(.+)$", line)
+        if not match:
+            continue
+        checksums[match.group(2).strip()] = match.group(1).lower()
+    return checksums
+
+def _sha256_file(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 64), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+def _verify_checksum(version, archive_name, archive_path):
+    base_url = f"https://github.com/{REPO}/releases/download/v{version}"
+    checksum_candidates = [
+        "checksums.txt",
+        f"{PROJECT}_{version}_checksums.txt",
+    ]
+
+    checksum_text = None
+    checksum_name = None
+    for candidate in checksum_candidates:
+        text = _download_text(f"{base_url}/{candidate}")
+        if text is not None:
+            checksum_text = text
+            checksum_name = candidate
+            break
+
+    if checksum_text is None:
+        raise RuntimeError(
+            f"no checksum file found for v{version} (tried: {', '.join(checksum_candidates)})"
+        )
+
+    checksums = _parse_checksums(checksum_text)
+    expected = checksums.get(archive_name)
+    if expected is None:
+        raise RuntimeError(f"checksum for {archive_name} not found in {checksum_name}")
+
+    actual = _sha256_file(archive_path)
+    if actual != expected:
+        raise RuntimeError(f"checksum mismatch for {archive_name}")
+
 
 def _extract_binary(archive_path, dest_binary):
     bin_names = {_binary_name(), PROJECT, f"{PROJECT}.exe"}
@@ -124,6 +184,7 @@ def ensure_installed():
             local = tmpdir / asset
             if _download_asset(url, local):
                 archive_path = local
+                _verify_checksum(version, asset, local)
                 break
         if archive_path is None:
             raise RuntimeError(
