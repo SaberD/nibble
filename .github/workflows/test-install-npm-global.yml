@@ -2,9 +2,13 @@ name: Test Install via npm -g
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish npm Package"]
+    types: [completed]
 
 jobs:
   npm-global-install:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     strategy:
       fail-fast: false
       matrix:

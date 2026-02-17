@@ -2,9 +2,13 @@ name: Test Install via pipx
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish PyPI Package"]
+    types: [completed]
 
 jobs:
   pipx-install:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     strategy:
       fail-fast: false
       matrix:

@@ -2,9 +2,13 @@ name: Test Install via Homebrew
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
 
 jobs:
   brew-install:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
     strategy:
       fail-fast: false
       matrix:
