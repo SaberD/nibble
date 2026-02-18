@@ -37,7 +37,7 @@ jobs:
           fi
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
           brew update
-          brew install saberd/tap/nibble
+          brew install backendsystems/tap/nibble
           echo "$(/home/linuxbrew/.linuxbrew/bin/brew --prefix)/bin" >> "$GITHUB_PATH"
 
       - name: Install nibble with brew (macOS)
@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           brew update
-          brew install saberd/tap/nibble
+          brew install backendsystems/tap/nibble
 
       - name: Smoke test nibble startup
         uses: backendsystems/nibble/.github/actions/smoke-test@main

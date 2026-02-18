@@ -6,6 +6,8 @@ dist: .artifacts/goreleaser
 builds:
   - main: .
     binary: nibble
+    ldflags:
+      - -X main.version={{ .Version }}
     goos:
       - linux
       - darwin

@@ -12,11 +12,19 @@ import (
 	"github.com/backendsystems/nibble/internal/tui"
 )
 
+var version = "dev"
+
 func main() {
-	// Enable demo mode for anonymized recordings.
 	var demoMode bool
+	var showVersion bool
 	flag.BoolVar(&demoMode, "demo", false, "use demo interfaces")
+	flag.BoolVar(&showVersion, "version", false, "print version and exit")
 	flag.Parse()
+
+	if showVersion {
+		fmt.Println(version)
+		return
+	}
 
 	var ifaces []net.Interface
 	var addrsByIface map[string][]net.Addr
