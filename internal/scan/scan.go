@@ -3,10 +3,12 @@ package scan
 import (
 	"fmt"
 	"net"
-	"unicode/utf8"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
+
+	"github.com/backendsystems/nibble/internal/scanner"
 )
 
 // CommonPorts are the most common ports to scan for host discovery
@@ -20,133 +22,22 @@ var CommonPorts = []int{
 	8080, // HTTP-Alt
 }
 
-// PortInfo holds a port number and its service banner
-type PortInfo struct {
-	Port   int
-	Banner string
-}
-
-// HostResult holds all scan info for a single host
-type HostResult struct {
-	IP       string
-	Hardware string
-	Ports    []PortInfo
-}
-
-// FormatHost renders a HostResult into the display string
-func FormatHost(h HostResult) string {
-	var lines []string
-	if h.Hardware != "" {
-		lines = append(lines, fmt.Sprintf("%s - %s", h.IP, h.Hardware))
-	} else {
-		lines = append(lines, h.IP)
-	}
-	for _, p := range h.Ports {
-		if p.Banner != "" {
-			lines = append(lines, fmt.Sprintf("port %d: %s", p.Port, p.Banner))
-		} else {
-			lines = append(lines, fmt.Sprintf("port %d", p.Port))
-		}
-	}
-	return strings.Join(lines, "\n")
-}
-
-// DemoHosts defines fake hosts with real MAC addresses so demo uses the OUI lookup
-var DemoHosts = []HostResult{
-	{
-		IP: "192.168.1.1", Hardware: "f0:9f:c2:1a:22:01",
-		Ports: []PortInfo{
-			{22, "SSH-2.0-OpenSSH_8.4"},
-			{80, "UniFi OS 3.2.12"},
-			{443, ""},
-		},
-	},
-	{
-		IP: "192.168.1.50", Hardware: "48:b0:2d:5e:a3:10",
-		Ports: []PortInfo{
-			{22, "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.6"},
-			{5432, ""},
-		},
-	},
-	{
-		IP: "192.168.1.75", Hardware: "9c:b7:0d:0a:3f:12",
-		Ports: []PortInfo{
-			{22, "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.11"},
-		},
-	},
-	{
-		IP: "192.168.1.100", Hardware: "f0:ee:7a:ab:cd:ef",
-		Ports: []PortInfo{
-			{80, "Apache/2.4.56"},
-			{443, ""},
-			{8080, "Jetty 11.0.15"},
-		},
-	},
-	{
-		IP: "10.0.0.42", Hardware: "d8:3a:dd:11:22:33",
-		Ports: []PortInfo{
-			{22, "SSH-2.0-OpenSSH_9.2p1 Debian-2+deb12u2"},
-			{80, "lighttpd/1.4.69"},
-			{1883, ""},
-		},
-	},
-}
-
-// ScanProgress represents progress updates during scanning
-type ScanProgress struct {
-	Host         string // Host found (IP, hostname, port)
-	Scanned      int    // Number of hosts scanned so far in the sweep phase
-	Total        int    // Total hosts to scan in the sweep phase
-	Phase        string // "neighbors" or "sweep"
-	PhaseScanned int    // Phase-local progress
-	PhaseTotal   int    // Phase-local total
-}
-
-// Scanner abstracts network scanning so real and demo modes share the same code path.
-type Scanner interface {
-	ScanNetwork(ifaceName, subnet string, progressChan chan<- ScanProgress)
-}
-
 // NetScanner performs real network scanning (TCP connect, ARP, banner grab).
 type NetScanner struct{}
-
-// DemoScanner simulates scanning with fake host data.
-type DemoScanner struct{}
 
 type portResult struct {
 	port   int
 	banner string
 }
 
-// totalScanHosts returns the number of IPv4 hosts that will actually be scanned.
-// For normal subnets, excludes network+broadcast. For /31 and /32, keeps all addresses.
-func totalScanHosts(ipnet *net.IPNet) int {
-	ones, bits := ipnet.Mask.Size()
-	hostBits := bits - ones
-
-	// Non-IPv4 fallback keeps prior behavior.
-	if bits != 32 {
-		return 1 << uint(hostBits)
-	}
-
-	switch {
-	case hostBits <= 0:
-		return 1
-	case hostBits == 1:
-		return 2
-	default:
-		return (1 << uint(hostBits)) - 2
-	}
-}
-
 // ScanNetwork scans a real subnet with controlled concurrency for smooth progress.
-func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- ScanProgress) {
+func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- scanner.ProgressUpdate) {
 	_, ipnet, err := net.ParseCIDR(subnet)
 	if err != nil {
 		return
 	}
 
-	totalHosts := totalScanHosts(ipnet)
+	totalHosts := scanner.TotalScanHosts(ipnet)
 
 	skipIPs := s.runNeighborDiscoveryPhase(ifaceName, ipnet, totalHosts, progressChan)
 	s.runSubnetSweepPhase(ifaceName, ipnet, totalHosts, skipIPs, progressChan)
@@ -156,8 +47,8 @@ func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- S
 // runNeighborDiscoveryPhase discovers hosts already visible in the ARP/neighbor
 // table and emits them immediately, returning IPs to skip during the full
 // subnet sweep.
-func (s *NetScanner) runNeighborDiscoveryPhase(ifaceName string, subnet *net.IPNet, totalHosts int, progressChan chan<- ScanProgress) map[string]struct{} {
-	discovered := DiscoverVisibleNeighbors(ifaceName, subnet)
+func (s *NetScanner) runNeighborDiscoveryPhase(ifaceName string, subnet *net.IPNet, totalHosts int, progressChan chan<- scanner.ProgressUpdate) map[string]struct{} {
+	discovered := visibleNeighbors(ifaceName, subnet)
 	skipIPs := make(map[string]struct{}, len(discovered))
 	for _, neighbor := range discovered {
 		skipIPs[neighbor.IP] = struct{}{}
@@ -165,12 +56,10 @@ func (s *NetScanner) runNeighborDiscoveryPhase(ifaceName string, subnet *net.IPN
 
 	if len(discovered) == 0 {
 		select {
-		case progressChan <- ScanProgress{
-			Scanned:      0,
-			Total:        totalHosts,
-			Phase:        "neighbors",
-			PhaseScanned: 0,
-			PhaseTotal:   0,
+		case progressChan <- scanner.NeighborProgress{
+			TotalHosts: totalHosts,
+			Seen:       0,
+			Total:      0,
 		}:
 		default:
 		}
@@ -196,8 +85,8 @@ func (s *NetScanner) runNeighborDiscoveryPhase(ifaceName string, subnet *net.IPN
 
 			hostInfo := scanHostWithKnownMAC(ifaceName, neighbor.IP, neighbor.MAC)
 			if hostInfo == "" {
-				hardware := VendorFromMAC(neighbor.MAC)
-				hostInfo = FormatHost(HostResult{
+				hardware := vendorFromMac(neighbor.MAC)
+				hostInfo = scanner.FormatHost(scanner.HostResult{
 					IP:       neighbor.IP,
 					Hardware: hardware,
 				})
@@ -209,13 +98,11 @@ func (s *NetScanner) runNeighborDiscoveryPhase(ifaceName string, subnet *net.IPN
 			progressMu.Unlock()
 
 			select {
-			case progressChan <- ScanProgress{
-				Host:         hostInfo,
-				Scanned:      0,
-				Total:        totalHosts,
-				Phase:        "neighbors",
-				PhaseScanned: currentDone,
-				PhaseTotal:   len(discovered),
+			case progressChan <- scanner.NeighborProgress{
+				Host:       hostInfo,
+				TotalHosts: totalHosts,
+				Seen:       currentDone,
+				Total:      len(discovered),
 			}:
 			default:
 			}
@@ -257,21 +144,21 @@ func scanOpenPorts(ip string) []portResult {
 
 func resolveHardware(ifaceName string, targetIP net.IP, knownMAC string) string {
 	if knownMAC != "" {
-		return VendorFromMAC(knownMAC)
+		return vendorFromMac(knownMAC)
 	}
 
 	if targetIP == nil {
 		return ""
 	}
 
-	mac := ResolveMAC(ifaceName, targetIP)
+	mac := resolveMac(ifaceName, targetIP)
 	if mac == "" {
-		mac = LookupMACFromCache(targetIP.String())
+		mac = lookupMacFromCache(targetIP.String())
 	}
 	if mac == "" {
 		return ""
 	}
-	return VendorFromMAC(mac)
+	return vendorFromMac(mac)
 }
 
 func scanHostWithKnownMAC(ifaceName string, ip string, knownMAC string) string {
@@ -293,17 +180,17 @@ func scanHostWithKnownMAC(ifaceName string, ip string, knownMAC string) string {
 	}
 
 	// Build output using shared formatter
-	result := HostResult{IP: ip, Hardware: hardware}
+	result := scanner.HostResult{IP: ip, Hardware: hardware}
 	for _, r := range results {
-		result.Ports = append(result.Ports, PortInfo{Port: r.port, Banner: r.banner})
+		result.Ports = append(result.Ports, scanner.PortInfo{Port: r.port, Banner: r.banner})
 	}
 
-	return FormatHost(result)
+	return scanner.FormatHost(result)
 }
 
 // runSubnetSweepPhase scans the whole subnet and skips hosts already found
 // via neighbor discovery.
-func (s *NetScanner) runSubnetSweepPhase(ifaceName string, subnet *net.IPNet, totalHosts int, skipIPs map[string]struct{}, progressChan chan<- ScanProgress) {
+func (s *NetScanner) runSubnetSweepPhase(ifaceName string, subnet *net.IPNet, totalHosts int, skipIPs map[string]struct{}, progressChan chan<- scanner.ProgressUpdate) {
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
 	scanned := 0
@@ -346,13 +233,11 @@ func (s *NetScanner) runSubnetSweepPhase(ifaceName string, subnet *net.IPNet, to
 
 			// Send progress update for every host
 			select {
-			case progressChan <- ScanProgress{
-				Host:         hostInfo,
-				Scanned:      currentScanned,
-				Total:        totalHosts,
-				Phase:        "sweep",
-				PhaseScanned: currentScanned,
-				PhaseTotal:   totalHosts,
+			case progressChan <- scanner.SweepProgress{
+				Host:       hostInfo,
+				TotalHosts: totalHosts,
+				Scanned:    currentScanned,
+				Total:      totalHosts,
 			}:
 			}
 		}(ip.String())
@@ -492,92 +377,4 @@ func normalizeBannerForDisplay(s string) string {
 		clean = clean[:80]
 	}
 	return clean
-}
-
-// ScanNetwork simulates a scan with fake hosts for demo mode.
-func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- ScanProgress) {
-	_, ipnet, err := net.ParseCIDR(subnet)
-	if err != nil {
-		close(progressChan)
-		return
-	}
-
-	totalHosts := totalScanHosts(ipnet)
-
-	// Pick which demo hosts belong to this subnet, resolve MAC via OUI
-	var subnetHosts []HostResult
-	for _, h := range DemoHosts {
-		ip := net.ParseIP(h.IP)
-		if ip != nil && ipnet.Contains(ip) {
-			resolved := h
-			resolved.Hardware = VendorFromMAC(h.Hardware)
-			subnetHosts = append(subnetHosts, resolved)
-		}
-	}
-
-	// Simulate "already visible" neighbors first (phase 1), then sweep.
-	neighborCount := 0
-	if len(subnetHosts) > 0 {
-		neighborCount = 1
-		if len(subnetHosts) > 2 {
-			neighborCount = 2
-		}
-	}
-
-	neighbors := subnetHosts[:neighborCount]
-	remaining := subnetHosts[neighborCount:]
-	for i, h := range neighbors {
-		time.Sleep(180 * time.Millisecond)
-		select {
-		case progressChan <- ScanProgress{
-			Host:         FormatHost(h),
-			Scanned:      0,
-			Total:        totalHosts,
-			Phase:        "neighbors",
-			PhaseScanned: i + 1,
-			PhaseTotal:   neighborCount,
-		}:
-		}
-	}
-	if neighborCount == 0 {
-		select {
-		case progressChan <- ScanProgress{
-			Scanned:      0,
-			Total:        totalHosts,
-			Phase:        "neighbors",
-			PhaseScanned: 0,
-			PhaseTotal:   0,
-		}:
-		}
-	}
-
-	// Space remaining hosts evenly across the sweep (phase 2).
-	hostInterval := 0
-	if len(remaining) > 0 {
-		hostInterval = totalHosts / (len(remaining) + 1)
-	}
-	hostIdx := 0
-
-	for i := 1; i <= totalHosts; i++ {
-		time.Sleep(10 * time.Millisecond)
-
-		host := ""
-		if hostInterval > 0 && hostIdx < len(remaining) && i == hostInterval*(hostIdx+1) {
-			host = FormatHost(remaining[hostIdx])
-			hostIdx++
-		}
-
-		select {
-		case progressChan <- ScanProgress{
-			Host:         host,
-			Scanned:      i,
-			Total:        totalHosts,
-			Phase:        "sweep",
-			PhaseScanned: i,
-			PhaseTotal:   totalHosts,
-		}:
-		}
-	}
-
-	close(progressChan)
 }

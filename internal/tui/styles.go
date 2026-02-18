@@ -10,13 +10,6 @@ var (
 			Bold(true).
 			Foreground(lipgloss.Color("15"))
 
-	itemStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("15"))
-
-	selectedItemStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("15")).
-				Bold(true)
-
 	docStyle = lipgloss.NewStyle().
 			Margin(0, 1)
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/backendsystems/nibble/internal/demo"
 	"github.com/backendsystems/nibble/internal/scan"
+	"github.com/backendsystems/nibble/internal/scanner"
 	"github.com/backendsystems/nibble/internal/tui"
 )
 
@@ -43,14 +44,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	var scanner scan.Scanner
+	var networkScanner scanner.Scanner
 	if demoMode {
-		scanner = &scan.DemoScanner{}
+		networkScanner = &demo.DemoScanner{}
 	} else {
-		scanner = &scan.NetScanner{}
+		networkScanner = &scan.NetScanner{}
 	}
 
-	if err := tui.Run(scanner, ifaces, addrsByIface); err != nil {
+	if err := tui.Run(networkScanner, ifaces, addrsByIface); err != nil {
 		fmt.Printf("Error starting the program: %v", err)
 		os.Exit(1)
 	}
