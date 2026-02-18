@@ -61,7 +61,7 @@ func scanOpenPorts(ip string, ports []int) []portResult {
 			defer conn.Close()
 
 			resultMu.Lock()
-			results = append(results, portResult{port: port, banner: grabServiceBanner(conn, port)})
+			results = append(results, portResult{port: port, banner: getServiceBanner(conn)})
 			resultMu.Unlock()
 		}(port)
 	}

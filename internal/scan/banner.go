@@ -3,6 +3,7 @@ package scan
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -13,20 +14,24 @@ const (
 	maxBannerLength   = 80
 )
 
-// grabServiceBanner reads a service banner
-// Push-banner protocols are read directly; HTTP ports send HEAD first
-func grabServiceBanner(conn net.Conn, port int) string {
+// getServiceBanner reads a service banner
+// Prefer passive reads first, then fall back to HTTP probe.
+func getServiceBanner(conn net.Conn) string {
 	_ = conn.SetDeadline(time.Now().Add(bannerReadTimeout))
 
-	switch port {
-	case 80, 443, 8080, 8000, 8443:
-		return readHTTPBanner(conn)
-	default:
-		return readPushBanner(conn)
+	passive := readPushBanner(conn)
+	if passive != "" {
+		if checkIfHttp(passive) {
+			return parseHTTPServer(passive)
+		}
+		return passive
 	}
+
+	return requestHttpBanner(conn)
 }
 
-func readHTTPBanner(conn net.Conn) string {
+// requestHttpBanner sends a simple HEAD request and returns a parsed banner string
+func requestHttpBanner(conn net.Conn) string {
 	_, _ = fmt.Fprintf(conn, "HEAD / HTTP/1.0\r\nHost: %s\r\n\r\n", conn.RemoteAddr())
 
 	buf := make([]byte, 2048)
@@ -35,7 +40,11 @@ func readHTTPBanner(conn net.Conn) string {
 		return ""
 	}
 
-	return parseHTTPServer(string(buf[:n]))
+	response := string(buf[:n])
+	if checkIfHttp(response) {
+		return parseHTTPServer(response)
+	}
+	return cleanBanner(buf[:n])
 }
 
 func readPushBanner(conn net.Conn) string {
@@ -59,22 +68,7 @@ func cleanBanner(raw []byte) string {
 		raw = raw[:idx]
 	}
 
-	// Replace invalid UTF-8 bytes with '.'
-	s := string(raw)
-	if !utf8.ValidString(s) {
-		cleaned := make([]rune, 0, len(raw))
-		for len(raw) > 0 {
-			r, size := utf8.DecodeRune(raw)
-			if r == utf8.RuneError && size == 1 {
-				cleaned = append(cleaned, '.')
-				raw = raw[1:]
-				continue
-			}
-			cleaned = append(cleaned, r)
-			raw = raw[size:]
-		}
-		s = string(cleaned)
-	}
+	s := replaceInvalid(raw)
 
 	// Keep printable ASCII only, and trim whitespace
 	out := []rune{}
@@ -90,6 +84,28 @@ func cleanBanner(raw []byte) string {
 		return clean
 	}
 	return clean[:maxBannerLength]
+}
+
+// replaceInvalid replaces invalid UTF-8 bytes with '.'
+func replaceInvalid(raw []byte) string {
+	s := string(raw)
+	if utf8.ValidString(s) {
+		return s
+	}
+
+	cleaned := make([]rune, 0, len(raw))
+	for len(raw) > 0 {
+		r, size := utf8.DecodeRune(raw)
+		if r == utf8.RuneError && size == 1 {
+			cleaned = append(cleaned, '.')
+			raw = raw[1:]
+			continue
+		}
+		cleaned = append(cleaned, r)
+		raw = raw[size:]
+	}
+
+	return string(cleaned)
 }
 
 func firstLineBreak(b []byte) int {
@@ -140,4 +156,26 @@ func parseHTTPServer(response string) string {
 		return cleanBanner([]byte(response[:idx]))
 	}
 	return cleanBanner([]byte(response))
+}
+
+func checkIfHttp(s string) bool {
+	line := s
+	if idx := strings.IndexAny(s, "\r\n"); idx >= 0 {
+		line = s[:idx]
+	}
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return false
+	}
+
+	parts := strings.Fields(line)
+	if len(parts) < 2 {
+		return false
+	}
+	if !strings.HasPrefix(strings.ToUpper(parts[0]), "HTTP/") {
+		return false
+	}
+
+	code, err := strconv.Atoi(parts[1])
+	return err == nil && code >= 100 && code <= 599
 }
