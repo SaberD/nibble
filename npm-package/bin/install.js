@@ -7,8 +7,8 @@ const path = require('path');
 const crypto = require('crypto');
 const tar = require('tar');
 
-const PROJECT = 'nibble';
-const OWNER = 'backendsystems';
+const PROJECT = 'YOUR_PROJECT';
+const OWNER = 'YOUR_OWNER';
 const ROOT = path.resolve(__dirname, '..');
 const VENDOR_DIR = path.join(ROOT, 'vendor');
 const { version } = require(path.join(ROOT, 'package.json'));

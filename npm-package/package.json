@@ -1,9 +1,9 @@
 {
-  "name": "@backendsystems/nibble",
+  "name": "@YOUR_OWNER/YOUR_PROJECT",
   "version": "0.1.0",
   "description": "Fast local network scanner with hardware identification and a terminal UI",
   "bin": {
-    "nibble": "bin/nibble.js"
+    "YOUR_PROJECT": "bin/YOUR_PROJECT.js"
   },
   "scripts": {
     "postinstall": "node bin/install.js"
@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/backendsystems/nibble"
+    "url": "https://github.com/YOUR_OWNER/YOUR_PROJECT"
   },
   "author": "saberd",
   "license": "MIT",

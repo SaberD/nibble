@@ -1,7 +1,0 @@
-{
-  "bin": "../nibble",
-  "name": "@backendsystems/nibble",
-  "platforms": ["linux", "darwin", "win32"],
-  "arch": ["x64", "arm64"],
-  "version": "0.1.0"
-}

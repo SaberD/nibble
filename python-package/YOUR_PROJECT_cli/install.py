@@ -6,12 +6,12 @@ import tempfile
 from importlib import metadata
 from pathlib import Path
 
-from nibble_cli.checksum import verify_release_checksum
-from nibble_cli.download import download_asset, download_text
+from YOUR_PROJECT_cli.checksum import verify_release_checksum
+from YOUR_PROJECT_cli.download import download_asset, download_text
 
-OWNER = "backendsystems"
-PROJECT = "nibble"
-DIST_NAME = "nibble-cli"
+OWNER = "YOUR_OWNER"
+PROJECT = "YOUR_PROJECT"
+DIST_NAME = "YOUR_PROJECT-cli"
 
 
 def platform_triplet():
@@ -109,7 +109,7 @@ def ensure_installed():
             archive_path=archive_path,
             download_text=download_text,
         )
-        # Extract the nibble binary from the archive into the cache path.
+        # Extract the YOUR_PROJECT binary from the archive into the cache path.
         extract_binary(archive_path, binary_path)
 
     if os.name != "nt":

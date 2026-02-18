@@ -1,11 +1,11 @@
 version: 2
 
 # Goreleaser config for Go binary release
-project_name: nibble
+project_name: YOUR_PROJECT
 dist: .artifacts/goreleaser
 builds:
   - main: .
-    binary: nibble
+    binary: YOUR_PROJECT
     ldflags:
       - -X main.version={{ .Version }}
     goos:
@@ -21,17 +21,17 @@ archives:
       - README.md
 release:
   github:
-    owner: backendsystems
-    name: nibble
+    owner: YOUR_OWNER
+    name: YOUR_PROJECT
   draft: false
   prerelease: false
 homebrew_casks:
-  - name: nibble
+  - name: YOUR_PROJECT
     repository:
-      owner: backendsystems
+      owner: YOUR_OWNER
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/backendsystems/nibble"
+    homepage: "https://github.com/YOUR_OWNER/YOUR_PROJECT"
     description: "Fast local network scanner with hardware identification and a terminal UI"
     license: "MIT"
     commit_author:

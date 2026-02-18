@@ -6,8 +6,8 @@ import sys
 from importlib import metadata
 from pathlib import Path
 
-PROJECT = "nibble"
-DIST_NAME = "nibble-cli"
+PROJECT = "YOUR_PROJECT"
+DIST_NAME = "YOUR_PROJECT-cli"
 
 
 def cache_root():
@@ -34,11 +34,11 @@ def remove_path(path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Clean cached nibble binaries.")
+    parser = argparse.ArgumentParser(description="Clean cached YOUR_PROJECT binaries.")
     parser.add_argument(
         "--all",
         action="store_true",
-        help="Remove all cached nibble versions.",
+        help="Remove all cached YOUR_PROJECT versions.",
     )
     args = parser.parse_args()
 
@@ -53,7 +53,7 @@ def main():
 
     version = installed_version()
     if version is None:
-        print("nibble-cli is not installed. Use --all to remove cache root.", file=sys.stderr)
+        print("YOUR_PROJECT-cli is not installed. Use --all to remove cache root.", file=sys.stderr)
         return 1
 
     target = root / version

@@ -54,8 +54,8 @@ jobs:
           "GOBIN=$gobin" | Out-File -FilePath $env:GITHUB_ENV -Append
           $gobin | Out-File -FilePath $env:GITHUB_PATH -Append
 
-      - name: Install nibble with go install
-        run: go install github.com/backendsystems/nibble@latest
+      - name: Install YOUR_PROJECT with go install
+        run: go install github.com/YOUR_OWNER/YOUR_PROJECT@latest
 
-      - name: Smoke test nibble startup
-        uses: backendsystems/nibble/.github/actions/smoke-test@main
+      - name: Smoke test YOUR_PROJECT startup
+        uses: YOUR_OWNER/YOUR_PROJECT/.github/actions/smoke-test@main

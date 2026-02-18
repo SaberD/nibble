@@ -42,8 +42,8 @@ jobs:
       - name: Install pipx
         run: python -m pip install --upgrade pipx
 
-      - name: Install nibble with pipx
-        run: pipx install nibble-cli
+      - name: Install YOUR_PROJECT with pipx
+        run: pipx install YOUR_PROJECT-cli
 
-      - name: Smoke test nibble startup
-        uses: backendsystems/nibble/.github/actions/smoke-test@main
+      - name: Smoke test YOUR_PROJECT startup
+        uses: YOUR_OWNER/YOUR_PROJECT/.github/actions/smoke-test@main

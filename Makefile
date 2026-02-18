@@ -1,28 +1,23 @@
-.PHONY: all build demo update run pip npm goreleaser fix
+.PHONY: all build run demo pip npm goreleaser fix
 
 all: run
 
 build:
-	@go build -o nibble .
-	@echo "Built nibble binary"
+	@go build -o YOUR_PROJECT .
+	@echo "Built YOUR_PROJECT binary"
 
-nibble: build
+YOUR_PROJECT: build
 
-run: nibble
-	@./nibble
+run: YOUR_PROJECT
+	@./YOUR_PROJECT
 
-demo: nibble
+demo: YOUR_PROJECT
 	@if ! command -v vhs >/dev/null 2>&1; then \
 		echo "vhs not found. Install it from https://github.com/charmbracelet/vhs"; \
 		exit 1; \
 	fi
 	@TERM=xterm-256color COLORTERM=truecolor VHS_NO_SANDBOX=1 vhs demo.tape
 	@echo "Generated demo.gif"
-
-update:
-	@echo "Downloading IEEE OUI database..."
-	@curl -sL "https://standards-oui.ieee.org/oui/oui.csv" -o internal/scan/oui.csv
-	@echo "Updated $$(wc -l < internal/scan/oui.csv) entries"
 
 pip:
 	@cd python-package && \

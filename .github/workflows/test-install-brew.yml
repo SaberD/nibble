@@ -27,7 +27,7 @@ jobs:
             runs_on: macos-15
     runs-on: ${{ matrix.runs_on }}
     steps:
-      - name: Install nibble with brew (Linux)
+      - name: Install YOUR_PROJECT with brew (Linux)
         if: runner.os == 'Linux'
         shell: bash
         run: |
@@ -37,16 +37,16 @@ jobs:
           fi
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
           brew update
-          brew install backendsystems/tap/nibble
+          brew install YOUR_OWNER/tap/YOUR_PROJECT
           echo "$(/home/linuxbrew/.linuxbrew/bin/brew --prefix)/bin" >> "$GITHUB_PATH"
 
-      - name: Install nibble with brew (macOS)
+      - name: Install YOUR_PROJECT with brew (macOS)
         if: runner.os == 'macOS'
         shell: bash
         run: |
           set -euo pipefail
           brew update
-          brew install backendsystems/tap/nibble
+          brew install YOUR_OWNER/tap/YOUR_PROJECT
 
-      - name: Smoke test nibble startup
-        uses: backendsystems/nibble/.github/actions/smoke-test@main
+      - name: Smoke test YOUR_PROJECT startup
+        uses: YOUR_OWNER/YOUR_PROJECT/.github/actions/smoke-test@main

@@ -15,19 +15,19 @@ def get_version():
         return "0.1.0"
 
 setup(
-    name="nibble-cli",
+    name="YOUR_PROJECT-cli",
     version=get_version(),
     description="Fast local network scanner with hardware identification and a terminal UI",
     long_description=open("README.md").read() if os.path.exists("README.md") else "",
     long_description_content_type="text/markdown",
     author="saberd",
     author_email="mail@saberd.com",
-    url="https://github.com/backendsystems/nibble",
+    url="https://github.com/YOUR_OWNER/YOUR_PROJECT",
     packages=find_packages(),
     entry_points={
         "console_scripts": [
-            "nibble=nibble_cli.installer:main",
-            "nibble-cleanup=nibble_cli.cleanup:main",
+            "YOUR_PROJECT=YOUR_PROJECT_cli.installer:main",
+            "YOUR_PROJECT-cleanup=YOUR_PROJECT_cli.cleanup:main",
         ],
     },
     install_requires=[],

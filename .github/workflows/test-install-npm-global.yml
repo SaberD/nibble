@@ -39,11 +39,11 @@ jobs:
           node-version: '24'
           architecture: ${{ matrix.arch }}
 
-      - name: Install nibble with npm -g
-        run: npm install -g @backendsystems/nibble
+      - name: Install YOUR_PROJECT with npm -g
+        run: npm install -g @YOUR_OWNER/YOUR_PROJECT
 
       - name: Show installed npm package version
-        run: npm list -g @backendsystems/nibble --depth=0
+        run: npm list -g @YOUR_OWNER/YOUR_PROJECT --depth=0
 
-      - name: Smoke test nibble startup
-        uses: backendsystems/nibble/.github/actions/smoke-test@main
+      - name: Smoke test YOUR_PROJECT startup
+        uses: YOUR_OWNER/YOUR_PROJECT/.github/actions/smoke-test@main

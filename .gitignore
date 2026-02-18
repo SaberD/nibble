@@ -1,10 +1,24 @@
-nibble
-nibble.exe
+# Binary
+YOUR_PROJECT
+YOUR_PROJECT.exe
+
+# GoReleaser output
+dist/
+
+# npm
+npm-package/*.tgz
+npm-package/vendor/
+
+# Python
+python-package/dist/
+python-package/.venv/
+
+# Demo recording
+demo.gif
 *.cast
+*.mp4
+
+# Dev
 .claude/
 .artifacts/
-*.mp4
-*.txt
-post.md
-
 .gocache/

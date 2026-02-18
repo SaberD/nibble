@@ -1,8 +1,8 @@
-name: Smoke test nibble startup
-description: Verify nibble was installed correctly.
+name: Smoke test YOUR_PROJECT startup
+description: Verify YOUR_PROJECT was installed correctly.
 runs:
   using: composite
   steps:
-    - name: Smoke test nibble startup
+    - name: Smoke test YOUR_PROJECT startup
       shell: bash
-      run: nibble -version
+      run: YOUR_PROJECT -version
