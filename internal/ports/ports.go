@@ -12,7 +12,22 @@ const (
 	ModeCustom  = "custom"
 )
 
-var defaultPorts = []int{22, 23, 80, 443, 445, 3389, 8080}
+var defaultPorts = []int{
+	22,   // SSH
+	23,   // Telnet
+	53,   // DNS
+	80,   // HTTP
+	139,  // NetBIOS Session Service
+	443,  // HTTPS
+	445,  // SMB
+	1883, // MQTT
+	3306, // MySQL
+	3389, // RDP
+	5432, // PostgreSQL
+	8000, // Alt HTTP
+	8080, // Alt HTTP proxy/app
+	8443, // Alt HTTPS
+}
 
 func IsValidPack(name string) bool {
 	return name == ModeDefault || name == ModeCustom

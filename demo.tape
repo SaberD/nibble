@@ -19,5 +19,14 @@ Left
 Sleep 300ms
 Left
 Sleep 300ms
+Type "p"
+Sleep 300ms
+Down
+Sleep 300ms
+Set TypingSpeed 100ms
+Type "22, 80, 443, 8080, 8081"
+Sleep 300ms
+Enter
+Sleep 300ms
 Enter
 Sleep 5s

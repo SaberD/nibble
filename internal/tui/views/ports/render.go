@@ -1,8 +1,10 @@
 package portsview
 
 import (
+	"strconv"
 	"strings"
 
+	"github.com/backendsystems/nibble/internal/ports"
 	"github.com/backendsystems/nibble/internal/tui/views/common"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -20,7 +22,8 @@ func Render(m Model, maxWidth int) string {
 		customStyle = customStyle.Foreground(lipgloss.Color("226")).Bold(true)
 	}
 
-	b.WriteString(defaultStyle.Render("default: 22,23,80,443,445,3389,8080") + "\n")
+	defaultLine := wrapPortList("default: ", formatPortList(ports.DefaultPorts()), maxWidth)
+	b.WriteString(defaultStyle.Render(defaultLine) + "\n")
 	customContent := m.CustomPorts
 	if m.PortPack == "custom" {
 		customContent = withCursor(m.CustomPorts, m.CustomCursor)
@@ -63,4 +66,15 @@ func withCursor(s string, cursor int) string {
 		cursor = len(s)
 	}
 	return s[:cursor] + "|" + s[cursor:]
+}
+
+func formatPortList(portList []int) string {
+	if len(portList) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(portList))
+	for _, p := range portList {
+		parts = append(parts, strconv.Itoa(p))
+	}
+	return strings.Join(parts, ",")
 }

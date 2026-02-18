@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/backendsystems/nibble/internal/demo"
 	"github.com/backendsystems/nibble/internal/ports"
 	"github.com/backendsystems/nibble/internal/scan"
 	"github.com/backendsystems/nibble/internal/scanner"
@@ -38,9 +39,12 @@ func Run(networkScanner scanner.Scanner, ifaces []net.Interface, addrsByIface ma
 	if pack == "" || !ports.IsValidPack(pack) {
 		pack = "default"
 	}
-	if netScanner, ok := networkScanner.(*scan.NetScanner); ok {
-		if resolvedPorts, err := ports.Resolve(pack, cfg.Custom, ""); err == nil {
-			netScanner.Ports = resolvedPorts
+	if resolvedPorts, err := ports.Resolve(pack, cfg.Custom, ""); err == nil {
+		switch typed := networkScanner.(type) {
+		case *scan.NetScanner:
+			typed.Ports = resolvedPorts
+		case *demo.DemoScanner:
+			typed.Ports = resolvedPorts
 		}
 	}
 

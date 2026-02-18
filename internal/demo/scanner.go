@@ -4,11 +4,14 @@ import (
 	"net"
 	"time"
 
+	"github.com/backendsystems/nibble/internal/ports"
 	"github.com/backendsystems/nibble/internal/scanner"
 )
 
 // DemoScanner simulates a scan with fake host data.
-type DemoScanner struct{}
+type DemoScanner struct {
+	Ports []int
+}
 
 func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- scanner.ProgressUpdate) {
 	_, ipnet, err := net.ParseCIDR(subnet)
@@ -18,6 +21,11 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 	}
 
 	totalHosts := scanner.TotalScanHosts(ipnet)
+	selected := selectedPorts(s.Ports)
+	selectedSet := make(map[int]struct{}, len(selected))
+	for _, p := range selected {
+		selectedSet[p] = struct{}{}
+	}
 
 	// Pick which demo hosts belong to this subnet.
 	var subnetHosts []scanner.HostResult
@@ -31,10 +39,16 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 			Hardware: h.Hardware,
 		}
 		for _, p := range h.Ports {
+			if _, ok := selectedSet[p.Port]; !ok {
+				continue
+			}
 			resolved.Ports = append(resolved.Ports, scanner.PortInfo{
 				Port:   p.Port,
 				Banner: p.Banner,
 			})
+		}
+		if len(resolved.Ports) == 0 {
+			continue
 		}
 		subnetHosts = append(subnetHosts, resolved)
 	}
@@ -92,4 +106,11 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 	}
 
 	close(progressChan)
+}
+
+func selectedPorts(configured []int) []int {
+	if len(configured) > 0 {
+		return configured
+	}
+	return ports.DefaultPorts()
 }

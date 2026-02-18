@@ -3,6 +3,7 @@ package portsview
 import (
 	"strings"
 
+	"github.com/backendsystems/nibble/internal/demo"
 	"github.com/backendsystems/nibble/internal/ports"
 	"github.com/backendsystems/nibble/internal/scan"
 
@@ -177,8 +178,11 @@ func applyConfig(m Model) (Model, bool) {
 		m.ErrorMsg = err.Error()
 		return m, false
 	}
-	if netScanner, ok := m.NetworkScan.(*scan.NetScanner); ok {
-		netScanner.Ports = resolvedPorts
+	switch typed := m.NetworkScan.(type) {
+	case *scan.NetScanner:
+		typed.Ports = resolvedPorts
+	case *demo.DemoScanner:
+		typed.Ports = resolvedPorts
 	}
 	m.ErrorMsg = ""
 	return m, true
