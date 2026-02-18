@@ -11,16 +11,6 @@ import (
 
 const selectionHelpText = "←/→/↑/↓ a/d/w/s h/j/k/l • p: ports • ?: help • q: quit"
 
-const (
-	docMarginX       = 1
-	cardContentWidth = 20
-	cardPaddingX     = 1
-	cardBorderX      = 1
-
-	cardTotalWidth      = cardContentWidth + (2 * cardPaddingX) + (2 * cardBorderX)
-	viewHorizontalInset = 2 * docMarginX
-)
-
 type Action int
 
 const (
@@ -106,14 +96,6 @@ func MoveCursorDown(cursor, cardsPerRow, maxIndex int) int {
 		return cursor
 	}
 	return next
-}
-
-func CardsPerRow(windowWidth int) int {
-	cardsPerRow := (windowWidth - viewHorizontalInset) / cardTotalWidth
-	if cardsPerRow < 1 {
-		return 1
-	}
-	return cardsPerRow
 }
 
 func ResolveScanSelection(interfaces []net.Interface, cursor int, addrsByIface map[string][]net.Addr) (ScanSelection, error) {
