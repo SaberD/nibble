@@ -1,11 +1,14 @@
+//go:build darwin
+
 package macos
 
 import (
+	"net"
 	"net/netip"
-	"os/exec"
-	"strings"
+	"syscall"
 
 	"github.com/backendsystems/nibble/internal/scan/shared"
+	"golang.org/x/net/route"
 )
 
 type Neighbor struct {
@@ -15,65 +18,84 @@ type Neighbor struct {
 }
 
 func LookupMAC(ip string) string {
-	out, err := exec.Command("arp", "-an").Output()
-	if err != nil {
-		return ""
-	}
-
-	for _, line := range strings.Split(string(out), "\n") {
-		row, ok := parseRow(line)
-		if !ok || row.IP != ip {
-			continue
-		}
-		if row.MAC != "00:00:00:00:00:00" {
+	for _, row := range Neighbors("") {
+		if row.IP == ip && row.MAC != "00:00:00:00:00:00" {
 			return row.MAC
 		}
 	}
-
 	return ""
 }
 
 func Neighbors(ifaceName string) []Neighbor {
-	out, err := exec.Command("arp", "-an").Output()
+	rib, err := route.FetchRIB(syscall.AF_INET, route.RIBTypeRoute, 0)
+	if err != nil || len(rib) == 0 {
+		return nil
+	}
+
+	msgs, err := route.ParseRIB(route.RIBTypeRoute, rib)
 	if err != nil {
 		return nil
 	}
 
 	rows := make([]Neighbor, 0)
-	for _, line := range strings.Split(string(out), "\n") {
-		row, ok := parseRow(line)
-		if !ok || row.Iface != ifaceName {
+	seen := make(map[string]struct{})
+	for _, msg := range msgs {
+		routeMsg, ok := msg.(*route.RouteMessage)
+		if !ok || routeMsg.Flags&syscall.RTF_LLINFO == 0 {
 			continue
 		}
+
+		row, ok := parseNeighbor(routeMsg)
+		if !ok {
+			continue
+		}
+		if ifaceName != "" && row.Iface != ifaceName {
+			continue
+		}
+
+		key := row.IP + "|" + row.Iface
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
 		rows = append(rows, row)
 	}
 
 	return rows
 }
 
-func parseRow(line string) (Neighbor, bool) {
-	fields := strings.Fields(line)
-	if len(fields) < 6 {
-		return Neighbor{}, false
-	}
-	if fields[2] != "at" || fields[4] != "on" {
+func parseNeighbor(routeMsg *route.RouteMessage) (Neighbor, bool) {
+	if len(routeMsg.Addrs) <= syscall.RTAX_GATEWAY {
 		return Neighbor{}, false
 	}
 
-	ip := strings.Trim(fields[1], "()")
-	addr, err := netip.ParseAddr(ip)
-	if err != nil || !addr.Is4() {
+	dst, ok := routeMsg.Addrs[syscall.RTAX_DST].(*route.Inet4Addr)
+	if !ok {
 		return Neighbor{}, false
 	}
 
-	mac := shared.NormalizeMAC(fields[3])
+	gateway, ok := routeMsg.Addrs[syscall.RTAX_GATEWAY].(*route.LinkAddr)
+	if !ok || len(gateway.Addr) == 0 {
+		return Neighbor{}, false
+	}
+
+	addr := netip.AddrFrom4(dst.IP)
+	mac := shared.NormalizeMAC(net.HardwareAddr(gateway.Addr).String())
 	if mac == "" {
 		return Neighbor{}, false
+	}
+
+	iface := gateway.Name
+	if iface == "" && routeMsg.Index > 0 {
+		netIface, err := net.InterfaceByIndex(routeMsg.Index)
+		if err == nil {
+			iface = netIface.Name
+		}
 	}
 
 	return Neighbor{
 		IP:    addr.String(),
 		MAC:   mac,
-		Iface: fields[5],
+		Iface: iface,
 	}, true
 }

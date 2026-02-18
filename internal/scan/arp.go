@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
-	scanlinux "github.com/backendsystems/nibble/internal/scan/linux"
-	scanmacos "github.com/backendsystems/nibble/internal/scan/macos"
-	scanwindows "github.com/backendsystems/nibble/internal/scan/windows"
+	"github.com/backendsystems/nibble/internal/scan/linux"
+	"github.com/backendsystems/nibble/internal/scan/macos"
+	"github.com/backendsystems/nibble/internal/scan/windows"
+
 	"github.com/mdlayher/arp"
 )
 
@@ -42,15 +43,15 @@ func resolveMac(ifaceName string, targetIP net.IP) string {
 }
 
 // lookupMacFromCache reads the OS ARP cache to find a MAC without needing root
-// Linux uses /proc/net/arp; Windows uses `arp -a`; macOS uses `arp -an`
+// Linux reads /proc/net/arp, macOS reads routing table entries, Windows reads IP helper table entries
 func lookupMacFromCache(ip string) string {
 	if runtime.GOOS == "windows" {
-		return scanwindows.LookupMAC(ip)
+		return windows.LookupMAC(ip)
 	}
 	if runtime.GOOS == "darwin" {
-		return scanmacos.LookupMAC(ip)
+		return macos.LookupMAC(ip)
 	}
-	return scanlinux.LookupMAC(ip)
+	return linux.LookupMAC(ip)
 }
 
 // NeighborEntry is a visible L2/L3 neighbor from the host ARP/neighbor table
@@ -65,15 +66,15 @@ func visibleNeighbors(ifaceName string, subnet *net.IPNet) []NeighborEntry {
 	var rows []NeighborEntry
 	switch runtime.GOOS {
 	case "windows":
-		for _, row := range scanwindows.Neighbors() {
+		for _, row := range windows.Neighbors() {
 			rows = append(rows, NeighborEntry{IP: row.IP, MAC: row.MAC})
 		}
 	case "darwin":
-		for _, row := range scanmacos.Neighbors(ifaceName) {
+		for _, row := range macos.Neighbors(ifaceName) {
 			rows = append(rows, NeighborEntry{IP: row.IP, MAC: row.MAC})
 		}
 	default:
-		for _, row := range scanlinux.Neighbors(ifaceName) {
+		for _, row := range linux.Neighbors(ifaceName) {
 			rows = append(rows, NeighborEntry{IP: row.IP, MAC: row.MAC})
 		}
 	}
