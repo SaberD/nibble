@@ -51,7 +51,7 @@ func Render(m Model, maxWidth int) string {
 	if m.ShowHelp {
 		return renderHelpOverlay(view)
 	}
-	return common.DocStyle.Render(view)
+	return view
 }
 
 func renderInterfaceCard(m Model, icons map[string]string, index int, iface net.Interface) string {

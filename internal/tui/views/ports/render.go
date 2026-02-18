@@ -52,7 +52,7 @@ func Render(m Model, maxWidth int) string {
 	if m.ShowHelp {
 		return renderHelpOverlay(view)
 	}
-	return common.DocStyle.Render(view)
+	return view
 }
 
 func withCursor(s string, cursor int) string {
