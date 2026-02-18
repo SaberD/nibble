@@ -1,9 +1,9 @@
-// Package demo contains fake interface data used only for creating demo recording gif using bubble tea vhs
+// Package demo provides fake network data for demo recordings.
 package demo
 
 import "net"
 
-// GetInterfaces returns fake network interfaces for demo/anonymized recordings.
+// GetInterfaces returns fake interfaces used by demo mode.
 func GetInterfaces() ([]net.Interface, map[string][]net.Addr, error) {
 	specs := []struct {
 		name string

@@ -39,7 +39,7 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 		subnetHosts = append(subnetHosts, resolved)
 	}
 
-	// Simulate "already visible" neighbors first (phase 1), then sweep.
+	// Emit nearby hosts first, then run the full sweep.
 	neighborCount := 0
 	if len(subnetHosts) > 0 {
 		neighborCount = 1
@@ -71,7 +71,7 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 		}
 	}
 
-	// Space remaining hosts evenly across the sweep (phase 2).
+	// Spread remaining hosts across the sweep.
 	hostInterval := 0
 	if len(remaining) > 0 {
 		hostInterval = totalHosts / (len(remaining) + 1)

@@ -36,9 +36,8 @@ func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- s
 	close(progressChan) // Signal completion
 }
 
-// runNeighborDiscoveryPhase discovers hosts already visible in the ARP/neighbor
-// table and emits them immediately, returning IPs to skip during the full
-// subnet sweep.
+// runNeighborDiscoveryPhase emits hosts already visible in neighbor tables
+// and returns IPs that should be skipped in the full sweep.
 func (s *NetScanner) runNeighborDiscoveryPhase(ifaceName string, subnet *net.IPNet, totalHosts int, progressChan chan<- scanner.ProgressUpdate) map[string]struct{} {
 	discovered := visibleNeighbors(ifaceName, subnet)
 	ports := s.ports()
@@ -160,7 +159,7 @@ func scanHostWithKnownMAC(ifaceName string, ip string, knownMAC string, ports []
 		return ""
 	}
 
-	// Resolve hardware manufacturer via known MAC hint or ARP/cache fallback.
+	// Resolve hardware vendor from known MAC, ARP, or cache.
 	hardware := resolveHardware(ifaceName, net.ParseIP(ip), knownMAC)
 
 	// Sort by port number
@@ -181,8 +180,7 @@ func scanHostWithKnownMAC(ifaceName string, ip string, knownMAC string, ports []
 	return scanner.FormatHost(result)
 }
 
-// runSubnetSweepPhase scans the whole subnet and skips hosts already found
-// via neighbor discovery.
+// runSubnetSweepPhase scans the subnet and skips hosts found in neighbor discovery.
 func (s *NetScanner) runSubnetSweepPhase(ifaceName string, subnet *net.IPNet, totalHosts int, skipIPs map[string]struct{}, progressChan chan<- scanner.ProgressUpdate) {
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
@@ -275,9 +273,8 @@ func (s *NetScanner) ports() []int {
 	return ports.DefaultPorts()
 }
 
-// grabServiceBanner reads the actual response from a service.
-// For push-banner protocols (SSH, SMTP, FTP) it just reads.
-// For HTTP ports it sends a HEAD request to get the Server header.
+// grabServiceBanner reads a service banner.
+// Push-banner protocols are read directly; HTTP ports send HEAD first.
 func grabServiceBanner(conn net.Conn, port int) string {
 	conn.SetDeadline(time.Now().Add(300 * time.Millisecond))
 
