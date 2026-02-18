@@ -10,20 +10,30 @@ const VENDOR_DIR = path.join(ROOT, 'vendor');
 const PACKAGE_JSON = require(path.join(ROOT, 'package.json'));
 
 function buildWrapper() {
-  const version = PACKAGE_JSON.version.replace(/^v/, '');
-  const tag = `v${version}`;
+  const tag = `v${PACKAGE_JSON.version}`;
   const base = `https://github.com/${OWNER}/${PROJECT}/releases/download/${tag}`;
   const binName = process.platform === 'win32' ? `${PROJECT}.exe` : PROJECT;
+  const supportedOs = ['linux', 'darwin', 'win32'];
+  const supportedArch = ['x64', 'arm64'];
 
-  return new BinWrapper({ skipCheck: true })
-    .src(`${base}/${PROJECT}_linux_amd64.tar.gz`, 'linux', 'x64')
-    .src(`${base}/${PROJECT}_linux_arm64.tar.gz`, 'linux', 'arm64')
-    .src(`${base}/${PROJECT}_darwin_amd64.tar.gz`, 'darwin', 'x64')
-    .src(`${base}/${PROJECT}_darwin_arm64.tar.gz`, 'darwin', 'arm64')
-    .src(`${base}/${PROJECT}_windows_amd64.tar.gz`, 'win32', 'x64')
-    .src(`${base}/${PROJECT}_windows_arm64.tar.gz`, 'win32', 'arm64')
-    .dest(VENDOR_DIR)
-    .use(binName);
+  const wrapper = new BinWrapper({ skipCheck: true });
+  for (const os of supportedOs) {
+    let osTarget = os;
+    if (os === 'win32') {
+      osTarget = 'windows';
+    }
+
+    for (const arch of supportedArch) {
+      let archTarget = arch;
+      if (arch === 'x64') {
+        archTarget = 'amd64';
+      }
+
+      wrapper.src(`${base}/${PROJECT}_${osTarget}_${archTarget}.tar.gz`, os, arch);
+    }
+  }
+
+  return wrapper.dest(VENDOR_DIR).use(binName);
 }
 
 async function main() {
