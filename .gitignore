@@ -4,4 +4,5 @@ nibble.exe
 .claude/
 .artifacts/
 *.mp4
+*.txt
 post.md

@@ -15,7 +15,6 @@ import urllib.error
 import urllib.request
 import zipfile
 import hashlib
-import re
 from importlib import metadata
 from pathlib import Path
 
@@ -91,10 +90,12 @@ def _parse_checksums(text):
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
-        match = re.match(r"^([A-Fa-f0-9]{64})\s+\*?(.+)$", line)
-        if not match:
+        parts = line.split()
+        if len(parts) < 2:
             continue
-        checksums[match.group(2).strip()] = match.group(1).lower()
+        checksum = parts[0].lower()
+        filename = parts[-1].lstrip("*")
+        checksums[filename] = checksum
     return checksums
 
 def _sha256_file(path):

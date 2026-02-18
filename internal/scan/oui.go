@@ -2,6 +2,7 @@ package scan
 
 import (
 	"encoding/csv"
+	"io"
 	"strings"
 
 	_ "embed"
@@ -17,21 +18,29 @@ var ouiMap map[string]string
 func init() {
 	ouiMap = make(map[string]string, 40000)
 	r := csv.NewReader(strings.NewReader(ouiCsv))
-	records, err := r.ReadAll()
-	if err != nil {
-		return
-	}
-	for _, rec := range records[1:] { // skip header
+	firstRow := true
+	for {
+		rec, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return
+		}
+		if firstRow {
+			firstRow = false
+			continue // skip header
+		}
 		if len(rec) < 3 {
 			continue
 		}
 		// Assignment is 6 hex chars like "286FB9", convert to "28:6f:b9".
-		hex := strings.ToLower(rec[1])
+		hex := strings.ToLower(strings.TrimSpace(rec[1]))
 		if len(hex) != 6 {
 			continue
 		}
 		prefix := hex[0:2] + ":" + hex[2:4] + ":" + hex[4:6]
-		ouiMap[prefix] = rec[2]
+		ouiMap[prefix] = strings.TrimSpace(rec[2])
 	}
 }
 

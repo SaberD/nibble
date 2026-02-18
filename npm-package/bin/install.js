@@ -90,11 +90,14 @@ function parseChecksums(text) {
       continue;
     }
 
-    const match = trimmed.match(/^([a-fA-F0-9]{64})\s+\*?(.+)$/);
-    if (!match) {
+    const parts = trimmed.split(/\s+/);
+    if (parts.length < 2) {
       continue;
     }
-    checksums.set(match[2].trim(), match[1].toLowerCase());
+
+    const checksum = parts[0].toLowerCase();
+    const fileName = parts.slice(1).join(' ').replace(/^\*/, '');
+    checksums.set(fileName, checksum);
   }
   return checksums;
 }

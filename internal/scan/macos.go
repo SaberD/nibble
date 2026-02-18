@@ -1,8 +1,8 @@
 package scan
 
 import (
+	"net/netip"
 	"os/exec"
-	"regexp"
 	"strings"
 )
 
@@ -12,21 +12,13 @@ func lookupMacFromDarwinArp(ip string) string {
 		return ""
 	}
 
-	// macOS arp -an shows entries like:
-	//   ? (192.168.1.1) at 0:11:22:33:44:55 on en0 ifscope [ethernet]
-	re := regexp.MustCompile(`(?i)\(` + regexp.QuoteMeta(ip) + `\)\s+at\s+([0-9a-f:]{11,17})\s+on\s+`)
 	for _, line := range strings.Split(string(out), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
+		row, ok := parseDarwinArpLine(line)
+		if !ok || row.IP != ip {
 			continue
 		}
-		match := re.FindStringSubmatch(line)
-		if len(match) != 2 {
-			continue
-		}
-		mac := normalizeMac(match[1])
-		if mac != "" && mac != "00:00:00:00:00:00" {
-			return mac
+		if row.MAC != "00:00:00:00:00:00" {
+			return row.MAC
 		}
 	}
 	return ""
@@ -38,24 +30,46 @@ func readNeighborsDarwinArp(ifaceName string) []NeighborEntry {
 		return nil
 	}
 
-	// Example:
-	// ? (192.168.1.1) at 0:11:22:33:44:55 on en0 ifscope [ethernet]
-	re := regexp.MustCompile(`(?i)\(([0-9]{1,3}(?:\.[0-9]{1,3}){3})\)\s+at\s+([0-9a-f:]{11,17})\s+on\s+(\S+)`)
-
 	var rows []NeighborEntry
 	for _, line := range strings.Split(string(out), "\n") {
-		match := re.FindStringSubmatch(strings.TrimSpace(line))
-		if len(match) != 4 {
+		row, ok := parseDarwinArpLine(line)
+		if !ok || row.Iface != ifaceName {
 			continue
 		}
-		if match[3] != ifaceName {
-			continue
-		}
-		mac := normalizeMac(match[2])
-		if mac == "" {
-			continue
-		}
-		rows = append(rows, NeighborEntry{IP: match[1], MAC: mac})
+		rows = append(rows, NeighborEntry{IP: row.IP, MAC: row.MAC})
 	}
 	return rows
+}
+
+type darwinArpRow struct {
+	IP    string
+	MAC   string
+	Iface string
+}
+
+func parseDarwinArpLine(line string) (darwinArpRow, bool) {
+	fields := strings.Fields(line)
+	if len(fields) < 6 {
+		return darwinArpRow{}, false
+	}
+	if fields[2] != "at" || fields[4] != "on" {
+		return darwinArpRow{}, false
+	}
+
+	ip := strings.Trim(fields[1], "()")
+	addr, err := netip.ParseAddr(ip)
+	if err != nil || !addr.Is4() {
+		return darwinArpRow{}, false
+	}
+
+	mac := normalizeMac(fields[3])
+	if mac == "" {
+		return darwinArpRow{}, false
+	}
+
+	return darwinArpRow{
+		IP:    addr.String(),
+		MAC:   mac,
+		Iface: fields[5],
+	}, true
 }
