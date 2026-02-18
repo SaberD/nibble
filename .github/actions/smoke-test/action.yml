@@ -1,0 +1,31 @@
+name: Smoke test nibble startup
+description: Launch nibble briefly and fail if it exits immediately.
+runs:
+  using: composite
+  steps:
+    - name: Smoke test nibble startup (Unix)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        set -eu
+        NIBBLE_DEMO=1 nibble &
+        pid=$!
+        sleep 1
+        if kill -0 "$pid"; then # doesn't kill, only checks whether pid exists
+          kill "$pid" || true
+        else
+          echo "nibble exited too early"
+          exit 1
+        fi
+
+    - name: Smoke test nibble startup (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $env:NIBBLE_DEMO = "1"
+        $proc = Start-Process -FilePath "nibble" -PassThru
+        Start-Sleep -Seconds 1
+        if ($proc.HasExited) {
+          throw "nibble exited too early"
+        }
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue

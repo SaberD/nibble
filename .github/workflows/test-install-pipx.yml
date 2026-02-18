@@ -42,62 +42,8 @@ jobs:
       - name: Install pipx
         run: python -m pip install --upgrade pipx
 
-      - name: Configure isolated pipx paths (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          set -euo pipefail
-          PIPX_HOME="${RUNNER_TEMP}/pipx-home-${{ matrix.os }}-${{ matrix.arch }}"
-          PIPX_BIN_DIR="${RUNNER_TEMP}/pipx-bin-${{ matrix.os }}-${{ matrix.arch }}"
-          mkdir -p "$PIPX_HOME" "$PIPX_BIN_DIR"
-          echo "PIPX_HOME=$PIPX_HOME" >> "$GITHUB_ENV"
-          echo "PIPX_BIN_DIR=$PIPX_BIN_DIR" >> "$GITHUB_ENV"
-          echo "$PIPX_BIN_DIR" >> "$GITHUB_PATH"
-
-      - name: Configure isolated pipx paths (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $pipxHome = Join-Path $env:RUNNER_TEMP "pipx-home-${{ matrix.os }}-${{ matrix.arch }}"
-          $pipxBin = Join-Path $env:RUNNER_TEMP "pipx-bin-${{ matrix.os }}-${{ matrix.arch }}"
-          New-Item -ItemType Directory -Force -Path $pipxHome | Out-Null
-          New-Item -ItemType Directory -Force -Path $pipxBin | Out-Null
-          "PIPX_HOME=$pipxHome" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "PIPX_BIN_DIR=$pipxBin" | Out-File -FilePath $env:GITHUB_ENV -Append
-          $pipxBin | Out-File -FilePath $env:GITHUB_PATH -Append
-
       - name: Install nibble with pipx
         run: pipx install nibble-cli
 
-      - name: Smoke test nibble startup (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          set -euo pipefail
-          log="${RUNNER_TEMP}/nibble-pipx.log"
-          if script -q /dev/null bash -lc 'exit 0' >/dev/null 2>&1; then
-            script -q /dev/null bash -lc 'NIBBLE_DEMO=1 nibble' >"$log" 2>&1 &
-          else
-            script -q -c 'NIBBLE_DEMO=1 nibble' /dev/null >"$log" 2>&1 &
-          fi
-          pid=$!
-          sleep 3
-          if ! kill -0 "$pid" 2>/dev/null; then
-            cat "$log"
-            exit 1
-          fi
-          kill "$pid" || true
-
-      - name: Smoke test nibble startup (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $log = Join-Path $env:RUNNER_TEMP "nibble-pipx.log"
-          $cmd = "set NIBBLE_DEMO=1 && nibble > `"$log`" 2>&1"
-          $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $cmd -PassThru
-          Start-Sleep -Seconds 3
-          if ($proc.HasExited) {
-            if (Test-Path $log) { Get-Content $log }
-            throw "nibble exited too early"
-          }
-          Stop-Process -Id $proc.Id -Force
+      - name: Smoke test nibble startup
+        uses: ./.github/actions/smoke-test
