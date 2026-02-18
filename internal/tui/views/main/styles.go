@@ -18,17 +18,12 @@ func CardsPerRow(windowWidth int) int {
 }
 
 var (
-	cardStyle = lipgloss.NewStyle().
+	baseCardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("8")).
 			Padding(0, cardPaddingX).
 			Width(cardWidth).
 			MarginBottom(0)
 
-	selectedCardStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.Color("226")).
-				Padding(0, cardPaddingX).
-				Width(cardWidth).
-				MarginBottom(0)
+	cardStyle         = baseCardStyle.BorderForeground(lipgloss.Color("8"))
+	selectedCardStyle = baseCardStyle.BorderForeground(lipgloss.Color("226"))
 )
