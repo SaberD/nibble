@@ -3,6 +3,7 @@ package scan
 import (
 	"net"
 	"sync"
+	"sync/atomic"
 
 	"github.com/backendsystems/nibble/internal/scanner"
 )
@@ -28,37 +29,24 @@ func (s *NetScanner) neighborDiscovery(ifaceName string, subnet *net.IPNet, tota
 	}
 
 	ports := s.ports()
-	semaphore := make(chan struct{}, workerCount)
+	jobs := make(chan NeighborEntry)
 	var wg sync.WaitGroup
-	var progressMu sync.Mutex
-	seenCount := 0
+	var seenCount atomic.Int64
+
+	for range workerCount {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for neighbor := range jobs {
+				processNeighborJob(ifaceName, neighbor, ports, totalHosts, len(neighbors), &seenCount, progressChan)
+			}
+		}()
+	}
 
 	for _, neighbor := range neighbors {
-		wg.Add(1)
-		semaphore <- struct{}{}
-
-		go func(neighbor NeighborEntry) {
-			defer wg.Done()
-			defer func() { <-semaphore }()
-
-			hostInfo := scanHostMac(ifaceName, neighbor.IP, neighbor.MAC, ports)
-			if hostInfo == "" {
-				hostInfo = formatHost(neighbor)
-			}
-
-			progressMu.Lock()
-			seenCount++
-			currentSeen := seenCount
-			progressMu.Unlock()
-
-			emitNeighborProgress(progressChan, scanner.NeighborProgress{
-				Host:       hostInfo,
-				TotalHosts: totalHosts,
-				Seen:       currentSeen,
-				Total:      len(neighbors),
-			})
-		}(neighbor)
+		jobs <- neighbor
 	}
+	close(jobs)
 
 	wg.Wait()
 	return skipIPs
@@ -67,43 +55,62 @@ func (s *NetScanner) neighborDiscovery(ifaceName string, subnet *net.IPNet, tota
 // subnetSweep scans the subnet and skips hosts found in neighbor discovery
 func (s *NetScanner) subnetSweep(ifaceName string, subnet *net.IPNet, totalHosts int, skipIPs map[string]struct{}, progressChan chan<- scanner.ProgressUpdate) {
 	ports := s.ports()
-	semaphore := make(chan struct{}, sweepPhaseMaxWorkers)
+	jobs := make(chan string, sweepPhaseMaxWorkers)
 	var wg sync.WaitGroup
-	var progressMu sync.Mutex
-	scanned := 0
+	var scanned atomic.Int64
+
+	for range sweepPhaseMaxWorkers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for currentIP := range jobs {
+				processSweepJob(ifaceName, currentIP, ports, skipIPs, totalHosts, &scanned, progressChan)
+			}
+		}()
+	}
 
 	for ip := subnet.IP.Mask(subnet.Mask); subnet.Contains(ip); incrementIP(ip) {
 		if skipIp4(ip, subnet) {
 			continue
 		}
 
-		wg.Add(1)
-		semaphore <- struct{}{}
-
-		go func(currentIP string) {
-			defer wg.Done()
-			defer func() { <-semaphore }()
-
-			hostInfo := ""
-			if _, alreadyFound := skipIPs[currentIP]; !alreadyFound {
-				hostInfo = scanHost(ifaceName, currentIP, ports)
-			}
-
-			progressMu.Lock()
-			scanned++
-			currentScanned := scanned
-			progressMu.Unlock()
-
-			progressChan <- scanner.SweepProgress{
-				Host:       hostInfo,
-				TotalHosts: totalHosts,
-				Scanned:    currentScanned,
-				Total:      totalHosts,
-			}
-		}(ip.String())
+		jobs <- ip.String()
 	}
+	close(jobs)
 
 	wg.Wait()
+}
+
+func processNeighborJob(ifaceName string, neighbor NeighborEntry, ports []int, totalHosts, totalNeighbors int, seenCount *atomic.Int64, progressChan chan<- scanner.ProgressUpdate) {
+	hostInfo := scanHostMac(ifaceName, neighbor.IP, neighbor.MAC, ports)
+	if hostInfo == "" {
+		hostInfo = formatHost(neighbor)
+	}
+
+	currentSeen := int(seenCount.Add(1))
+
+	emitNeighborProgress(progressChan, scanner.NeighborProgress{
+		Host:       hostInfo,
+		TotalHosts: totalHosts,
+		Seen:       currentSeen,
+		Total:      totalNeighbors,
+	})
+}
+
+func processSweepJob(ifaceName, currentIP string, ports []int, skipIPs map[string]struct{}, totalHosts int, scanned *atomic.Int64, progressChan chan<- scanner.ProgressUpdate) {
+	hostInfo := ""
+	if _, alreadyFound := skipIPs[currentIP]; !alreadyFound {
+		hostInfo = scanHost(ifaceName, currentIP, ports)
+	}
+
+	currentScanned := int(scanned.Add(1))
+
+	progressChan <- scanner.SweepProgress{
+		Host:       hostInfo,
+		TotalHosts: totalHosts,
+		Scanned:    currentScanned,
+		Total:      totalHosts,
+	}
 }
 
 func buildSkipMap(neighbors []NeighborEntry) map[string]struct{} {
