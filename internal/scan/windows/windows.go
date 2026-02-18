@@ -1,12 +1,19 @@
-package scan
+package windows
 
 import (
 	"net/netip"
 	"os/exec"
 	"strings"
+
+	"github.com/backendsystems/nibble/internal/scan/shared"
 )
 
-func lookupMacFromWindowsArp(ip string) string {
+type Neighbor struct {
+	IP  string
+	MAC string
+}
+
+func LookupMAC(ip string) string {
 	out, err := exec.Command("arp", "-a").Output()
 	if err != nil {
 		return ""
@@ -17,21 +24,22 @@ func lookupMacFromWindowsArp(ip string) string {
 		if len(fields) < 2 || fields[0] != ip {
 			continue
 		}
-		mac := normalizeMac(fields[1])
+		mac := shared.NormalizeMAC(fields[1])
 		if mac != "" && mac != "00:00:00:00:00:00" {
 			return mac
 		}
 	}
+
 	return ""
 }
 
-func readNeighborsWindowsArp() []NeighborEntry {
+func Neighbors() []Neighbor {
 	out, err := exec.Command("arp", "-a").Output()
 	if err != nil {
 		return nil
 	}
 
-	var rows []NeighborEntry
+	rows := make([]Neighbor, 0)
 	for _, line := range strings.Split(string(out), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) < 2 {
@@ -41,11 +49,12 @@ func readNeighborsWindowsArp() []NeighborEntry {
 		if err != nil || !ip.Is4() {
 			continue
 		}
-		mac := normalizeMac(fields[1])
+		mac := shared.NormalizeMAC(fields[1])
 		if mac == "" {
 			continue
 		}
-		rows = append(rows, NeighborEntry{IP: ip.String(), MAC: mac})
+		rows = append(rows, Neighbor{IP: ip.String(), MAC: mac})
 	}
+
 	return rows
 }

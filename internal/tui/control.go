@@ -74,10 +74,10 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.customCursor = len(m.customPorts)
 		return m, nil
 
-	case "up", "w", "k":
+	case "w", "k":
 		m.moveCursorUp()
 
-	case "down", "s", "j":
+	case "s", "j":
 		m.moveCursorDown()
 
 	case "left", "a", "h":

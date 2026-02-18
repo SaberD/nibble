@@ -5,5 +5,12 @@
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "nibble",
 	"workspaceFolder": "/workspace",
-	"remoteUser": "vscode"
+	"remoteUser": "vscode",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"golang.go"
+			]
+		}
+	}
 }

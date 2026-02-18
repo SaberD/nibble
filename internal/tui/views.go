@@ -286,7 +286,7 @@ func (m model) selectionView() string {
 	}
 
 	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	helpText := "arrows/wasd/hjkl: navigate • p: ports • ?: help • q: quit"
+	helpText := "left/right arrows + wasd/hjkl: navigate • p: ports • ?: help • q: quit"
 	view += "\n" + helpStyle.Render(wrapWords(helpText, maxWidth))
 
 	if m.showHelp {

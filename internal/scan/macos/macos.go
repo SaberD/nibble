@@ -1,19 +1,27 @@
-package scan
+package macos
 
 import (
 	"net/netip"
 	"os/exec"
 	"strings"
+
+	"github.com/backendsystems/nibble/internal/scan/shared"
 )
 
-func lookupMacFromDarwinArp(ip string) string {
+type Neighbor struct {
+	IP    string
+	MAC   string
+	Iface string
+}
+
+func LookupMAC(ip string) string {
 	out, err := exec.Command("arp", "-an").Output()
 	if err != nil {
 		return ""
 	}
 
 	for _, line := range strings.Split(string(out), "\n") {
-		row, ok := parseDarwinArpLine(line)
+		row, ok := parseRow(line)
 		if !ok || row.IP != ip {
 			continue
 		}
@@ -21,53 +29,49 @@ func lookupMacFromDarwinArp(ip string) string {
 			return row.MAC
 		}
 	}
+
 	return ""
 }
 
-func readNeighborsDarwinArp(ifaceName string) []NeighborEntry {
+func Neighbors(ifaceName string) []Neighbor {
 	out, err := exec.Command("arp", "-an").Output()
 	if err != nil {
 		return nil
 	}
 
-	var rows []NeighborEntry
+	rows := make([]Neighbor, 0)
 	for _, line := range strings.Split(string(out), "\n") {
-		row, ok := parseDarwinArpLine(line)
+		row, ok := parseRow(line)
 		if !ok || row.Iface != ifaceName {
 			continue
 		}
-		rows = append(rows, NeighborEntry{IP: row.IP, MAC: row.MAC})
+		rows = append(rows, row)
 	}
+
 	return rows
 }
 
-type darwinArpRow struct {
-	IP    string
-	MAC   string
-	Iface string
-}
-
-func parseDarwinArpLine(line string) (darwinArpRow, bool) {
+func parseRow(line string) (Neighbor, bool) {
 	fields := strings.Fields(line)
 	if len(fields) < 6 {
-		return darwinArpRow{}, false
+		return Neighbor{}, false
 	}
 	if fields[2] != "at" || fields[4] != "on" {
-		return darwinArpRow{}, false
+		return Neighbor{}, false
 	}
 
 	ip := strings.Trim(fields[1], "()")
 	addr, err := netip.ParseAddr(ip)
 	if err != nil || !addr.Is4() {
-		return darwinArpRow{}, false
+		return Neighbor{}, false
 	}
 
-	mac := normalizeMac(fields[3])
+	mac := shared.NormalizeMAC(fields[3])
 	if mac == "" {
-		return darwinArpRow{}, false
+		return Neighbor{}, false
 	}
 
-	return darwinArpRow{
+	return Neighbor{
 		IP:    addr.String(),
 		MAC:   mac,
 		Iface: fields[5],

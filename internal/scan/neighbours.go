@@ -1,0 +1,89 @@
+package scan
+
+import (
+	"fmt"
+	"net"
+	"sort"
+	"sync"
+	"time"
+
+	"github.com/backendsystems/nibble/internal/scanner"
+)
+
+const portDialTimeout = 200 * time.Millisecond
+
+type portResult struct {
+	port   int
+	banner string
+}
+
+func scanHost(ifaceName, ip string, ports []int) string {
+	return scanHostMac(ifaceName, ip, "", ports)
+}
+
+func scanHostMac(ifaceName, ip, knownMAC string, ports []int) string {
+	results := scanOpenPorts(ip, ports)
+	if len(results) == 0 {
+		return ""
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].port < results[j].port
+	})
+
+	host := scanner.HostResult{
+		IP:       ip,
+		Hardware: resolveHardware(ifaceName, net.ParseIP(ip), knownMAC),
+		Ports:    make([]scanner.PortInfo, 0, len(results)),
+	}
+
+	for _, result := range results {
+		host.Ports = append(host.Ports, scanner.PortInfo{Port: result.port, Banner: result.banner})
+	}
+
+	return scanner.FormatHost(host)
+}
+
+func scanOpenPorts(ip string, ports []int) []portResult {
+	var wg sync.WaitGroup
+	var resultMu sync.Mutex
+	results := make([]portResult, 0, len(ports))
+
+	for _, port := range ports {
+		wg.Add(1)
+		go func(port int) {
+			defer wg.Done()
+
+			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), portDialTimeout)
+			if err != nil {
+				return
+			}
+			defer conn.Close()
+
+			resultMu.Lock()
+			results = append(results, portResult{port: port, banner: grabServiceBanner(conn, port)})
+			resultMu.Unlock()
+		}(port)
+	}
+
+	wg.Wait()
+	return results
+}
+
+func resolveHardware(ifaceName string, targetIP net.IP, knownMAC string) string {
+	if knownMAC != "" {
+		return vendorFromMac(knownMAC)
+	}
+	if targetIP == nil {
+		return ""
+	}
+
+	mac := resolveMac(ifaceName, targetIP)
+	if mac == "" {
+		mac = lookupMacFromCache(targetIP.String())
+	}
+	if mac == "" {
+		return ""
+	}
+	return vendorFromMac(mac)
+}
