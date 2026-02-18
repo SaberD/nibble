@@ -8,6 +8,9 @@
   "scripts": {
     "postinstall": "node bin/install.js"
   },
+  "dependencies": {
+    "bin-wrapper": "^4.1.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/backendsystems/nibble"
