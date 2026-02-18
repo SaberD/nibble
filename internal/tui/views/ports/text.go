@@ -6,7 +6,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func wrapCSVLineWithPrefix(prefix, content string, maxWidth int) string {
+// wrapPortList wraps comma-separated content window max width
+func wrapPortList(prefix, content string, maxWidth int) string {
 	if content == "" {
 		return prefix
 	}
@@ -36,7 +37,7 @@ func wrapCSVLineWithPrefix(prefix, content string, maxWidth int) string {
 	return strings.Join(lines, "\n")
 }
 
-func invalidPortTokens(errMsg string) []string {
+func invalidPorts(errMsg string) []string {
 	const prefix = "invalid ports: "
 	lower := strings.ToLower(errMsg)
 	if !strings.Contains(lower, prefix) {
@@ -62,7 +63,7 @@ func invalidPortTokens(errMsg string) []string {
 	return out
 }
 
-func highlightInvalidTokens(s string, tokens []string) string {
+func highlightInvalidPorts(s string, tokens []string) string {
 	invalidStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
 	for _, token := range tokens {
 		if token == "" {

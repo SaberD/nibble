@@ -25,10 +25,10 @@ func Render(m Model, maxWidth int) string {
 	if m.PortPack == "custom" {
 		customContent = withCursor(m.CustomPorts, m.CustomCursor)
 	}
-	customLine := wrapCSVLineWithPrefix("custom:  ", customContent, maxWidth)
-	invalidTokens := invalidPortTokens(m.ErrorMsg)
+	customLine := wrapPortList("custom:  ", customContent, maxWidth)
+	invalidTokens := invalidPorts(m.ErrorMsg)
 	if m.PortPack == "custom" && len(invalidTokens) > 0 {
-		b.WriteString(highlightInvalidTokens(customLine, invalidTokens) + "\n")
+		b.WriteString(highlightInvalidPorts(customLine, invalidTokens) + "\n")
 	} else {
 		b.WriteString(customStyle.Render(customLine) + "\n")
 	}
