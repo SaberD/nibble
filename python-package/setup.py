@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 import os
 import subprocess
 
@@ -21,12 +21,13 @@ setup(
     long_description=open("README.md").read() if os.path.exists("README.md") else "",
     long_description_content_type="text/markdown",
     author="saberd",
-    author_email="your-email@example.com",
+    author_email="mail@saberd.com",
     url="https://github.com/backendsystems/nibble",
-    py_modules=["nibble_installer"],
+    packages=find_packages(),
     entry_points={
         "console_scripts": [
-            "nibble=nibble_installer:main",
+            "nibble=nibble_cli.installer:main",
+            "nibble-cleanup=nibble_cli.cleanup:main",
         ],
     },
     install_requires=[],
