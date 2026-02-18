@@ -54,27 +54,19 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.24.2'
-      - name: Install Goreleaser
+      - name: Enforce dry-run for manual execution
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true' }}
         run: |
-          TMP_DIR="$(mktemp -d)"
-          trap 'rm -rf "$TMP_DIR"' EXIT
-          curl -sL https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_Linux_x86_64.tar.gz | tar xz -C "$TMP_DIR"
-          sudo mv "$TMP_DIR/goreleaser" /usr/local/bin/
+          echo "workflow_dispatch only supports dry-run mode. Use a pushed v* tag for real release."
+          exit 1
       - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: ${{ github.event_name == 'workflow_dispatch' && 'release --snapshot --clean' || 'release --clean' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.dry_run }}" != "true" ]]; then
-            echo "workflow_dispatch only supports dry-run mode. Use a pushed v* tag for real release."
-            exit 1
-          fi
-          CMD="goreleaser release --clean"
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.dry_run }}" == "true" ]]; then
-            CMD="goreleaser release --snapshot --clean"
-          fi
-          echo "Running: $CMD"
-          eval "$CMD"
 
   brew:
     if: ${{ github.event_name == 'push' }}
