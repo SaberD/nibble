@@ -52,22 +52,18 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 	remaining := subnetHosts[neighborCount:]
 	for i, h := range neighbors {
 		time.Sleep(180 * time.Millisecond)
-		select {
-		case progressChan <- scanner.NeighborProgress{
+		progressChan <- scanner.NeighborProgress{
 			Host:       scanner.FormatHost(h),
 			TotalHosts: totalHosts,
 			Seen:       i + 1,
 			Total:      neighborCount,
-		}:
 		}
 	}
 	if neighborCount == 0 {
-		select {
-		case progressChan <- scanner.NeighborProgress{
+		progressChan <- scanner.NeighborProgress{
 			TotalHosts: totalHosts,
 			Seen:       0,
 			Total:      0,
-		}:
 		}
 	}
 
@@ -87,13 +83,11 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 			hostIdx++
 		}
 
-		select {
-		case progressChan <- scanner.SweepProgress{
+		progressChan <- scanner.SweepProgress{
 			Host:       host,
 			TotalHosts: totalHosts,
 			Scanned:    i,
 			Total:      totalHosts,
-		}:
 		}
 	}
 
