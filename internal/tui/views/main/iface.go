@@ -1,11 +1,14 @@
-package tui
+package mainview
 
-import "strings"
+import (
+	"fmt"
+	"net"
+	"strings"
+)
 
 func interfaceIcon(name string) string {
 	lower := strings.ToLower(name)
 
-	// Container/virtual network interfaces (Docker, Podman, Kubernetes/CNI, LXC/LXD, libvirt).
 	if strings.HasPrefix(lower, "docker") ||
 		strings.HasPrefix(lower, "br-") ||
 		strings.HasPrefix(lower, "veth") ||
@@ -18,7 +21,6 @@ func interfaceIcon(name string) string {
 		return "📦"
 	}
 
-	// Common VPN/tunnel interface prefixes across Linux/macOS/Windows.
 	if strings.HasPrefix(lower, "tun") ||
 		strings.HasPrefix(lower, "tap") ||
 		strings.HasPrefix(lower, "utun") ||
@@ -28,7 +30,6 @@ func interfaceIcon(name string) string {
 		return "🔒"
 	}
 
-	// Wi-Fi adapters: Linux-style (wl*/wlan*) and Windows/macOS naming.
 	if strings.HasPrefix(lower, "wl") ||
 		strings.HasPrefix(lower, "wlan") ||
 		strings.Contains(lower, "wi-fi") ||
@@ -37,11 +38,22 @@ func interfaceIcon(name string) string {
 		return "📶"
 	}
 
-	// Ethernet adapters: Linux-style (en*/eth*) and Windows naming.
 	if strings.HasPrefix(lower, "en") ||
 		strings.HasPrefix(lower, "eth") ||
 		strings.Contains(lower, "ethernet") {
 		return "🔌"
 	}
+
 	return "🌐"
+}
+
+func interfaceIPv4Labels(addrsByIface map[string][]net.Addr, name string) []string {
+	labels := make([]string, 0)
+	for _, addr := range addrsByIface[name] {
+		if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.To4() != nil {
+			ones, _ := ipnet.Mask.Size()
+			labels = append(labels, fmt.Sprintf("%s/%d", ipnet.IP.String(), ones))
+		}
+	}
+	return labels
 }

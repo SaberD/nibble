@@ -1,345 +1,189 @@
 package tui
 
 import (
-	"fmt"
 	"net"
-	"strings"
+	"os"
 
 	"github.com/backendsystems/nibble/internal/ports"
 	"github.com/backendsystems/nibble/internal/scan"
 	"github.com/backendsystems/nibble/internal/scanner"
+	mainview "github.com/backendsystems/nibble/internal/tui/views/main"
+	portsview "github.com/backendsystems/nibble/internal/tui/views/ports"
+	scanview "github.com/backendsystems/nibble/internal/tui/views/scan"
 
+	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/term"
 )
 
-type scanProgressMsg struct {
-	update scanner.ProgressUpdate
+type activeView int
+
+const (
+	viewMain activeView = iota
+	viewPorts
+	viewScan
+)
+
+type model struct {
+	active      activeView
+	windowW     int
+	cardsPerRow int
+	main        mainview.Model
+	ports       portsview.Model
+	scan        scanview.Model
 }
-type scanCompleteMsg struct{}
+
+func Run(networkScanner scanner.Scanner, ifaces []net.Interface, addrsByIface map[string][]net.Addr) error {
+	cfg, _ := ports.LoadConfig()
+	pack := cfg.Mode
+	if pack == "" || !ports.IsValidPack(pack) {
+		pack = "default"
+	}
+	if netScanner, ok := networkScanner.(*scan.NetScanner); ok {
+		if resolvedPorts, err := ports.Resolve(pack, cfg.Custom, ""); err == nil {
+			netScanner.Ports = resolvedPorts
+		}
+	}
+
+	initialWindowW, initialCardsPerRow := initialLayoutMetrics()
+
+	initialModel := model{
+		active:      viewMain,
+		windowW:     initialWindowW,
+		cardsPerRow: initialCardsPerRow,
+		main: mainview.Model{
+			Interfaces:   ifaces,
+			InterfaceMap: addrsByIface,
+		},
+		ports: portsview.Model{
+			PortPack:    pack,
+			CustomPorts: cfg.Custom,
+			NetworkScan: networkScanner,
+		},
+		scan: scanview.Model{
+			NetworkScan: networkScanner,
+			Progress: progress.New(
+				progress.WithScaledGradient("#FFD700", "#B8B000"),
+			),
+		},
+	}
+
+	prog := tea.NewProgram(initialModel)
+	_, err := prog.Run()
+	return err
+}
+
+func (m model) Init() tea.Cmd {
+	if m.ports.PortPack == "" {
+		m.ports.PortPack = "default"
+	}
+	if m.ports.PortConfigLoc == "" {
+		if path, err := ports.ConfigPath(); err == nil {
+			m.ports.PortConfigLoc = path
+		}
+	}
+	if m.ports.CustomCursor < 0 || m.ports.CustomCursor > len(m.ports.CustomPorts) {
+		m.ports.CustomCursor = len(m.ports.CustomPorts)
+	}
+	return nil
+}
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.windowWidth = msg.Width
-
-	case tea.KeyMsg:
-		return m.handleKey(msg)
-
-	case scanProgressMsg:
-		return m.handleScanProgress(msg)
-
-	case scanCompleteMsg:
-		m.scanning = false
-		m.scanComplete = true
-		return m, tea.Quit
+	if _, ok := msg.(tea.WindowSizeMsg); ok {
+		return m, nil
 	}
 
-	return m, nil
-}
-
-func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if m.scanning || m.scanComplete {
-		if msg.String() == "ctrl+c" || msg.String() == "q" {
-			// Preserve current results when quitting mid-scan so the final
-			// rendered view remains in scrollback after alt-screen exits.
-			if m.scanning {
-				m.scanning = false
-				m.scanComplete = true
-			}
+	switch m.active {
+	case viewScan:
+		result := m.scan.Update(msg)
+		if !result.Handled {
+			return m, nil
+		}
+		m.scan = result.Model
+		if result.Quit {
 			return m, tea.Quit
 		}
-		return m, nil
-	}
-
-	if m.editingPorts {
-		return m.handlePortsKey(msg)
-	}
-
-	// Close help on any key when it's shown.
-	if m.showHelp {
-		m.showHelp = false
-		return m, nil
-	}
-
-	switch msg.String() {
-	case "ctrl+c", "q":
-		return m, tea.Quit
-
-	case "?":
-		m.showHelp = true
-		return m, nil
-
-	case "p":
-		m.editingPorts = true
-		m.customCursor = len(m.customPorts)
-		return m, nil
-
-	case "left", "a", "h":
-		if m.cursor > 0 {
-			m.cursor--
-		}
-
-	case "right", "d", "l":
-		if m.cursor < len(m.interfaces)-1 {
-			m.cursor++
-		}
-
-	case "enter":
-		return m.selectInterfaceAndScan()
-	}
-
-	return m, nil
-}
-
-func (m model) handlePortsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if m.showHelp {
-		m.showHelp = false
-		return m, nil
-	}
-
-	switch msg.String() {
-	case "ctrl+c", "q":
-		return m, tea.Quit
-	case "?":
-		m.showHelp = true
-		return m, nil
-	case "tab", "up", "down":
-		if m.portPack == "default" {
-			m.portPack = "custom"
-		} else {
-			m.portPack = "default"
-		}
-		if m.customCursor > len(m.customPorts) {
-			m.customCursor = len(m.customPorts)
-		}
-		return m, nil
-	case "enter":
-		return m.applyPortConfigAndContinue()
-	case "left", "a", "h":
-		if m.portPack == "custom" && m.customCursor > 0 {
-			m.customCursor--
-		}
-		return m, nil
-	case "right", "d", "l":
-		if m.portPack == "custom" && m.customCursor < len(m.customPorts) {
-			m.customCursor++
-		}
-		return m, nil
-	case "home", "ctrl+a":
-		if m.portPack == "custom" {
-			m.customCursor = 0
-		}
-		return m, nil
-	case "end", "ctrl+e":
-		if m.portPack == "custom" {
-			m.customCursor = len(m.customPorts)
-		}
-		return m, nil
-	case "backspace":
-		if m.portPack != "custom" || m.customCursor == 0 || len(m.customPorts) == 0 {
-			return m, nil
-		}
-		i := m.customCursor - 1
-		m.customPorts = m.customPorts[:i] + m.customPorts[m.customCursor:]
-		m.customCursor--
-		return m, nil
-	case "delete":
-		if m.portPack != "custom" {
-			return m, nil
-		}
-		m.customPorts = ""
-		m.customCursor = 0
-		return m, nil
-	}
-
-	if m.portPack != "custom" {
-		return m, nil
-	}
-
-	if msg.Type == tea.KeyRunes {
-		for _, r := range msg.Runes {
-			if r >= '0' && r <= '9' {
-				if !canInsertPortDigit(m.customPorts, m.customCursor, r) {
-					continue
-				}
-				s := string(r)
-				m.customPorts = m.customPorts[:m.customCursor] + s + m.customPorts[m.customCursor:]
-				m.customCursor++
-				continue
-			}
-			if r == ',' {
-				s := string(r)
-				m.customPorts = m.customPorts[:m.customCursor] + s + m.customPorts[m.customCursor:]
-				m.customCursor++
-			}
-		}
-	}
-	return m, nil
-}
-
-func (m model) applyPortConfigAndContinue() (tea.Model, tea.Cmd) {
-	addPorts := ""
-	if m.portPack == "custom" {
-		normalized, normErr := ports.NormalizeCustom(strings.TrimSpace(m.customPorts))
-		if normErr != nil {
-			m.errorMsg = normErr.Error()
-			return m, nil
-		}
-		addPorts = normalized
-		m.customPorts = normalized
-		m.customCursor = len(m.customPorts)
-	}
-
-	resolvedPorts, err := ports.Resolve(m.portPack, addPorts, "")
-	if err != nil {
-		m.errorMsg = err.Error()
-		return m, nil
-	}
-
-	if cfgErr := ports.SaveConfig(ports.Config{
-		Mode:   m.portPack,
-		Custom: addPorts,
-	}); cfgErr != nil {
-		m.errorMsg = cfgErr.Error()
-		return m, nil
-	}
-
-	if netScanner, ok := m.scanner.(*scan.NetScanner); ok {
-		netScanner.Ports = resolvedPorts
-	}
-
-	m.errorMsg = ""
-	m.editingPorts = false
-	return m, nil
-}
-
-func canInsertPortDigit(s string, cursor int, digit rune) bool {
-	start, end := currentTokenBounds(s, cursor)
-	pos := cursor - start
-	token := s[start:end]
-	next := token[:pos] + string(digit) + token[pos:]
-
-	return len(next) <= 5
-}
-
-func currentTokenBounds(s string, cursor int) (int, int) {
-	if cursor < 0 {
-		cursor = 0
-	}
-	if cursor > len(s) {
-		cursor = len(s)
-	}
-
-	start := strings.LastIndexByte(s[:cursor], ',')
-	if start == -1 {
-		start = 0
-	} else {
-		start++
-	}
-
-	rest := s[cursor:]
-	nextComma := strings.IndexByte(rest, ',')
-	end := len(s)
-	if nextComma >= 0 {
-		end = cursor + nextComma
-	}
-
-	return start, end
-}
-
-func (m model) moveCursorUp() {
-	cardsPerRow := m.cardsPerRow()
-	if m.cursor >= cardsPerRow {
-		m.cursor -= cardsPerRow
-	}
-}
-
-func (m model) moveCursorDown() {
-	cardsPerRow := m.cardsPerRow()
-	if m.cursor+cardsPerRow < len(m.interfaces) {
-		m.cursor += cardsPerRow
-	}
-}
-
-func (m model) cardsPerRow() int {
-	cardWidth := 26 // 22 + 2 for border + 2 for spacing
-	cardsPerRow := (m.windowWidth - 4) / cardWidth
-	if cardsPerRow < 1 {
-		return 1
-	}
-	return cardsPerRow
-}
-
-func (m model) selectInterfaceAndScan() (tea.Model, tea.Cmd) {
-	if m.cursor >= len(m.interfaces) {
-		return m, nil
-	}
-
-	m.selectedIface = m.interfaces[m.cursor]
-	m.selectedAddrs = m.addrsByIface[m.selectedIface.Name]
-
-	if len(m.selectedAddrs) == 0 {
-		m.errorMsg = fmt.Sprintf("interface %s has no IP addresses", m.selectedIface.Name)
-		return m, nil
-	}
-
-	targetAddr := scanner.FirstIp4(m.selectedAddrs)
-	if targetAddr == "" {
-		m.errorMsg = fmt.Sprintf("interface %s has no valid IPv4 addresses", m.selectedIface.Name)
-		return m, nil
-	}
-
-	// Calculate total hosts for progress.
-	_, ipnet, _ := net.ParseCIDR(targetAddr)
-	m.totalHosts = scanner.TotalScanHosts(ipnet)
-
-	m.scanning = true
-	m.errorMsg = ""
-	m.foundHosts = nil
-	m.scannedCount = 0
-	m.neighborSeen = 0
-	m.neighborTotal = 0
-	m.progressChan = make(chan scanner.ProgressUpdate, 256)
-
-	return m, performScan(m.scanner, m.selectedIface.Name, targetAddr, m.progressChan)
-}
-
-func (m model) handleScanProgress(msg scanProgressMsg) (tea.Model, tea.Cmd) {
-	switch p := msg.update.(type) {
-	case scanner.NeighborProgress:
-		if p.TotalHosts > 0 {
-			m.totalHosts = p.TotalHosts
-		}
-		m.neighborSeen = p.Seen
-		m.neighborTotal = p.Total
-		if p.Host != "" {
-			m.foundHosts = append(m.foundHosts, p.Host)
-		}
-	case scanner.SweepProgress:
-		if p.TotalHosts > 0 {
-			m.totalHosts = p.TotalHosts
-		}
-		m.scannedCount = p.Scanned
-		if p.Host != "" {
-			m.foundHosts = append(m.foundHosts, p.Host)
-		}
-	}
-	return m, listenForProgress(m.progressChan)
-}
-
-func listenForProgress(progressChan <-chan scanner.ProgressUpdate) tea.Cmd {
-	return func() tea.Msg {
-		progress, ok := <-progressChan
+		return m, result.Cmd
+	case viewPorts:
+		key, ok := msg.(tea.KeyMsg)
 		if !ok {
-			return scanCompleteMsg{}
+			return m, nil
 		}
-		return scanProgressMsg{update: progress}
+		result := m.ports.Update(key)
+		m.ports = result.Model
+		if result.Quit {
+			return m, tea.Quit
+		}
+		if result.Done {
+			m.main.ErrorMsg = ""
+			m.active = viewMain
+		}
+		return m, nil
+	case viewMain:
+		key, ok := msg.(tea.KeyMsg)
+		if !ok {
+			return m, nil
+		}
+		result := m.main.Update(key)
+		m.main = result.Model
+		if result.Quit {
+			return m, tea.Quit
+		}
+		if result.OpenPorts {
+			m.ports.ShowHelp = false
+			m.ports.CustomCursor = len(m.ports.CustomPorts)
+			m.active = viewPorts
+			return m, nil
+		}
+		if result.StartScan {
+			m.main.ErrorMsg = ""
+			nextScan, cmd := m.scan.Start(
+				result.Selection.Iface,
+				result.Selection.Addrs,
+				result.Selection.TotalHosts,
+				result.Selection.TargetAddr,
+			)
+			m.scan = nextScan
+			m.active = viewScan
+			return m, cmd
+		}
+		return m, nil
+	default:
+		return m, nil
 	}
 }
 
-func performScan(networkScanner scanner.Scanner, ifaceName string, targetAddr string, progressChan chan scanner.ProgressUpdate) tea.Cmd {
-	return func() tea.Msg {
-		go networkScanner.ScanNetwork(ifaceName, targetAddr, progressChan)
-		return listenForProgress(progressChan)()
+func (m model) View() string {
+	maxWidth := 72
+	if m.windowW > 8 {
+		maxWidth = m.windowW - 4
 	}
+	cardsPerRow := m.cardsPerRow
+	if cardsPerRow == 0 {
+		cardsPerRow = 1
+	}
+
+	switch m.active {
+	case viewScan:
+		return scanview.Render(m.scan, maxWidth)
+	case viewPorts:
+		return portsview.Render(m.ports, maxWidth)
+	default:
+		return mainview.Render(m.main, maxWidth, cardsPerRow)
+	}
+}
+
+func initialLayoutMetrics() (windowW int, cardsPerRow int) {
+	cardsPerRow = 1
+	fd := os.Stdout.Fd()
+	if !term.IsTerminal(fd) {
+		return 0, cardsPerRow
+	}
+
+	width, _, err := term.GetSize(fd)
+	if err != nil || width <= 0 {
+		return 0, cardsPerRow
+	}
+
+	return width, mainview.CardsPerRow(width)
 }
