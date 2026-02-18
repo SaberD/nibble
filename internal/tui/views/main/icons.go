@@ -1,8 +1,6 @@
 package mainview
 
 import (
-	"fmt"
-	"net"
 	"strings"
 )
 
@@ -45,15 +43,4 @@ func interfaceIcon(name string) string {
 	}
 
 	return "🌐"
-}
-
-func interfaceIPv4Labels(addrsByIface map[string][]net.Addr, name string) []string {
-	labels := make([]string, 0)
-	for _, addr := range addrsByIface[name] {
-		if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.To4() != nil {
-			ones, _ := ipnet.Mask.Size()
-			labels = append(labels, fmt.Sprintf("%s/%d", ipnet.IP.String(), ones))
-		}
-	}
-	return labels
 }

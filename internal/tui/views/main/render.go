@@ -1,6 +1,7 @@
 package mainview
 
 import (
+	"fmt"
 	"net"
 	"strings"
 
@@ -74,11 +75,23 @@ func renderInterfaceCard(m Model, icons map[string]string, index int, iface net.
 	}
 	cardContent.WriteString(nameStyle.Render(icon+" "+name) + "\n")
 
-	addrs := interfaceIPv4Labels(m.InterfaceMap, name)
+	addrs := ipv4Labels(m.InterfaceMap, name)
 	addrStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	if len(addrs) > 0 {
 		cardContent.WriteString(addrStyle.Render(addrs[0]))
 	}
 
 	return style.Render(cardContent.String())
+}
+
+// ipv4Labels returns IPv4 labels for an interface
+func ipv4Labels(addrsByIface map[string][]net.Addr, name string) []string {
+	labels := make([]string, 0)
+	for _, addr := range addrsByIface[name] {
+		if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.To4() != nil {
+			ones, _ := ipnet.Mask.Size()
+			labels = append(labels, fmt.Sprintf("%s/%d", ipnet.IP.String(), ones))
+		}
+	}
+	return labels
 }

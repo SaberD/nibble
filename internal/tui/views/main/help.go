@@ -31,11 +31,10 @@ func renderHelpOverlay(view string) string {
 	helpContent := strings.Join([]string{
 		titleRow,
 		"Scans local networks for active hosts.",
-		"• Checks configurable TCP ports",
-		"• Banner grabs services (SSH, HTTP Server)",
+		"• Scans TCP ports",
+		"  • Press p to configure ports",
+		"• Grabs service banners (SSH, HTTP Server)",
 		"• Identifies hardware via MAC OUI (IEEE)",
-		"• Runs 100 goroutines in parallel",
-		"• Press p to configure ports (default/custom)",
 		"",
 		"any key: close",
 	}, "\n")
