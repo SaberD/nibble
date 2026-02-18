@@ -61,9 +61,14 @@ func (m model) portsView() string {
 	}
 
 	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	helpText := "tab: mode • left/right: move • type/backspace: edit • del: clear • enter: save • q: quit"
+	helpText := "tab • ←/→ a/d h/l • type • backspace: remove • delete: clear all • enter • ?: help • q: quit"
 	b.WriteString("\n" + helpStyle.Render(wrapWords(helpText, maxWidth)))
-	return docStyle.Render(b.String())
+
+	view := b.String()
+	if m.showHelp {
+		return m.renderPortsHelpOverlay(view)
+	}
+	return docStyle.Render(view)
 }
 
 func (m model) customPortsWithCursor() string {
@@ -286,7 +291,7 @@ func (m model) selectionView() string {
 	}
 
 	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	helpText := "left/right arrows + wasd/hjkl: navigate • p: ports • ?: help • q: quit"
+	helpText := "←/→ a/d h/l • p: ports • ?: help • q: quit"
 	view += "\n" + helpStyle.Render(wrapWords(helpText, maxWidth))
 
 	if m.showHelp {
@@ -364,7 +369,55 @@ func (m model) renderHelpOverlay(view string) string {
 		"• Runs 100 goroutines in parallel",
 		"• Press p to configure ports (default/custom)",
 		"",
-		"Press any key to close",
+		"any key: close",
+	}, "\n")
+
+	helpOverlay := helpBox.Render(helpContent)
+
+	return lipgloss.Place(
+		lipgloss.Width(view),
+		lipgloss.Height(view),
+		lipgloss.Center,
+		lipgloss.Top,
+		helpOverlay,
+		lipgloss.WithWhitespaceChars(" "),
+	)
+}
+
+func (m model) renderPortsHelpOverlay(view string) string {
+	helpBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("226")).
+		Padding(0, 1).
+		Width(56).
+		Foreground(lipgloss.Color("15"))
+
+	helpTitle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("226")).
+		Bold(true).
+		Render("Port Configuration")
+
+	iconStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("226")).
+		Bold(true)
+
+	titleWidth := 54
+	icon := iconStyle.Render("❓")
+	spacer := strings.Repeat(" ", titleWidth-lipgloss.Width(helpTitle)-lipgloss.Width(icon))
+	titleRow := helpTitle + spacer + icon
+
+	helpContent := strings.Join([]string{
+		titleRow,
+		"Configure which ports get scanned.",
+		"• tab: switch default/custom mode",
+		"• ←/→ or a/d or h/l: move cursor in custom list",
+		"• type digits and commas to edit custom ports",
+		"• backspace: remove",
+		"• delete: clear all",
+		"• q: quit",
+		"• enter: save and return",
+		"",
+		"any key: close",
 	}, "\n")
 
 	helpOverlay := helpBox.Render(helpContent)

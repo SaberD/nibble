@@ -74,12 +74,6 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.customCursor = len(m.customPorts)
 		return m, nil
 
-	case "w", "k":
-		m.moveCursorUp()
-
-	case "s", "j":
-		m.moveCursorDown()
-
 	case "left", "a", "h":
 		if m.cursor > 0 {
 			m.cursor--
@@ -98,9 +92,17 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) handlePortsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.showHelp {
+		m.showHelp = false
+		return m, nil
+	}
+
 	switch msg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
+	case "?":
+		m.showHelp = true
+		return m, nil
 	case "tab", "up", "down":
 		if m.portPack == "default" {
 			m.portPack = "custom"
@@ -113,12 +115,12 @@ func (m model) handlePortsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "enter":
 		return m.applyPortConfigAndContinue()
-	case "left", "h":
+	case "left", "a", "h":
 		if m.portPack == "custom" && m.customCursor > 0 {
 			m.customCursor--
 		}
 		return m, nil
-	case "right", "l":
+	case "right", "d", "l":
 		if m.portPack == "custom" && m.customCursor < len(m.customPorts) {
 			m.customCursor++
 		}
