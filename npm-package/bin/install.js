@@ -92,7 +92,7 @@ async function main() {
   console.log(`Installing ${PROJECT} ${version} for ${osPlatform}/${osArch}...`);
   fs.mkdirSync(VENDOR_DIR, { recursive: true });
 
-  const checksumsTxt = await fetch(`${base}/checksums.txt`);
+  const checksumsTxt = await fetch(`${base}/${PROJECT}_${version}_checksums.txt`);
   const expectedHash = parseChecksum(checksumsTxt, archiveName);
   if (!expectedHash) {
     throw new Error(`No checksum found for ${archiveName} in checksums.txt`);
