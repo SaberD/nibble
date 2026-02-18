@@ -3,6 +3,7 @@ package tui
 import (
 	"net"
 
+	"github.com/backendsystems/nibble/internal/ports"
 	"github.com/backendsystems/nibble/internal/scanner"
 
 	"github.com/charmbracelet/bubbles/progress"
@@ -19,6 +20,11 @@ type model struct {
 	selectedAddrs []net.Addr
 	errorMsg      string
 	showHelp      bool
+	editingPorts  bool
+	portPack      string
+	customPorts   string
+	customCursor  int
+	portConfigLoc string
 	scanning      bool
 	scanComplete  bool
 	foundHosts    []string
@@ -31,5 +37,16 @@ type model struct {
 }
 
 func (m model) Init() tea.Cmd {
+	if m.portPack == "" {
+		m.portPack = "default"
+	}
+	if m.portConfigLoc == "" {
+		if path, err := ports.ConfigPath(); err == nil {
+			m.portConfigLoc = path
+		}
+	}
+	if m.customCursor < 0 || m.customCursor > len(m.customPorts) {
+		m.customCursor = len(m.customPorts)
+	}
 	return nil
 }

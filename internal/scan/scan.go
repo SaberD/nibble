@@ -8,22 +8,14 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/backendsystems/nibble/internal/ports"
 	"github.com/backendsystems/nibble/internal/scanner"
 )
 
-// CommonPorts are the most common ports to scan for host discovery
-var CommonPorts = []int{
-	22,   // SSH
-	23,   // Telnet
-	80,   // HTTP
-	443,  // HTTPS
-	445,  // SMB
-	3389, // RDP
-	8080, // HTTP-Alt
-}
-
 // NetScanner performs real network scanning (TCP connect, ARP, banner grab).
-type NetScanner struct{}
+type NetScanner struct {
+	Ports []int
+}
 
 type portResult struct {
 	port   int
@@ -49,6 +41,7 @@ func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- s
 // subnet sweep.
 func (s *NetScanner) runNeighborDiscoveryPhase(ifaceName string, subnet *net.IPNet, totalHosts int, progressChan chan<- scanner.ProgressUpdate) map[string]struct{} {
 	discovered := visibleNeighbors(ifaceName, subnet)
+	ports := s.ports()
 	skipIPs := make(map[string]struct{}, len(discovered))
 	for _, neighbor := range discovered {
 		skipIPs[neighbor.IP] = struct{}{}
@@ -83,7 +76,7 @@ func (s *NetScanner) runNeighborDiscoveryPhase(ifaceName string, subnet *net.IPN
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			hostInfo := scanHostWithKnownMAC(ifaceName, neighbor.IP, neighbor.MAC)
+			hostInfo := scanHostWithKnownMAC(ifaceName, neighbor.IP, neighbor.MAC, ports)
 			if hostInfo == "" {
 				hardware := vendorFromMac(neighbor.MAC)
 				hostInfo = scanner.FormatHost(scanner.HostResult{
@@ -113,13 +106,13 @@ func (s *NetScanner) runNeighborDiscoveryPhase(ifaceName string, subnet *net.IPN
 	return skipIPs
 }
 
-func scanOpenPorts(ip string) []portResult {
+func scanOpenPorts(ip string, ports []int) []portResult {
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
 	var results []portResult
 
 	// Scan all ports in parallel for this host
-	for _, port := range CommonPorts {
+	for _, port := range ports {
 		wg.Add(1)
 		go func(port int) {
 			defer wg.Done()
@@ -161,8 +154,8 @@ func resolveHardware(ifaceName string, targetIP net.IP, knownMAC string) string 
 	return vendorFromMac(mac)
 }
 
-func scanHostWithKnownMAC(ifaceName string, ip string, knownMAC string) string {
-	results := scanOpenPorts(ip)
+func scanHostWithKnownMAC(ifaceName string, ip string, knownMAC string, ports []int) string {
+	results := scanOpenPorts(ip, ports)
 	if len(results) == 0 {
 		return ""
 	}
@@ -194,6 +187,7 @@ func (s *NetScanner) runSubnetSweepPhase(ifaceName string, subnet *net.IPNet, to
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
 	scanned := 0
+	ports := s.ports()
 
 	// Semaphore to limit concurrent host scans (100 for speed)
 	semaphore := make(chan struct{}, 100)
@@ -223,7 +217,7 @@ func (s *NetScanner) runSubnetSweepPhase(ifaceName string, subnet *net.IPNet, to
 
 			hostInfo := ""
 			if _, alreadyFound := skipIPs[currentIP]; !alreadyFound {
-				hostInfo = scanHost(ifaceName, currentIP)
+				hostInfo = scanHost(ifaceName, currentIP, ports)
 			}
 
 			mutex.Lock()
@@ -270,8 +264,15 @@ func isSubnetNetworkOrBroadcastIPv4(ip net.IP, subnet *net.IPNet) bool {
 }
 
 // scanHost resolves hardware via ARP, scans ports, grabs banners.
-func scanHost(ifaceName string, ip string) string {
-	return scanHostWithKnownMAC(ifaceName, ip, "")
+func scanHost(ifaceName string, ip string, ports []int) string {
+	return scanHostWithKnownMAC(ifaceName, ip, "", ports)
+}
+
+func (s *NetScanner) ports() []int {
+	if len(s.Ports) > 0 {
+		return s.Ports
+	}
+	return ports.DefaultPorts()
 }
 
 // grabServiceBanner reads the actual response from a service.

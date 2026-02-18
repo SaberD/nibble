@@ -3,7 +3,10 @@ package tui
 import (
 	"fmt"
 	"net"
+	"strings"
 
+	"github.com/backendsystems/nibble/internal/ports"
+	"github.com/backendsystems/nibble/internal/scan"
 	"github.com/backendsystems/nibble/internal/scanner"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -48,6 +51,10 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	if m.editingPorts {
+		return m.handlePortsKey(msg)
+	}
+
 	// Close help on any key when it's shown.
 	if m.showHelp {
 		m.showHelp = false
@@ -60,6 +67,11 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "?":
 		m.showHelp = true
+		return m, nil
+
+	case "p":
+		m.editingPorts = true
+		m.customCursor = len(m.customPorts)
 		return m, nil
 
 	case "up", "w", "k":
@@ -83,6 +95,154 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m model) handlePortsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "tab", "up", "down":
+		if m.portPack == "default" {
+			m.portPack = "custom"
+		} else {
+			m.portPack = "default"
+		}
+		if m.customCursor > len(m.customPorts) {
+			m.customCursor = len(m.customPorts)
+		}
+		return m, nil
+	case "enter":
+		return m.applyPortConfigAndContinue()
+	case "left", "h":
+		if m.portPack == "custom" && m.customCursor > 0 {
+			m.customCursor--
+		}
+		return m, nil
+	case "right", "l":
+		if m.portPack == "custom" && m.customCursor < len(m.customPorts) {
+			m.customCursor++
+		}
+		return m, nil
+	case "home", "ctrl+a":
+		if m.portPack == "custom" {
+			m.customCursor = 0
+		}
+		return m, nil
+	case "end", "ctrl+e":
+		if m.portPack == "custom" {
+			m.customCursor = len(m.customPorts)
+		}
+		return m, nil
+	case "backspace":
+		if m.portPack != "custom" || m.customCursor == 0 || len(m.customPorts) == 0 {
+			return m, nil
+		}
+		i := m.customCursor - 1
+		m.customPorts = m.customPorts[:i] + m.customPorts[m.customCursor:]
+		m.customCursor--
+		return m, nil
+	case "delete":
+		if m.portPack != "custom" {
+			return m, nil
+		}
+		m.customPorts = ""
+		m.customCursor = 0
+		return m, nil
+	}
+
+	if m.portPack != "custom" {
+		return m, nil
+	}
+
+	if msg.Type == tea.KeyRunes {
+		for _, r := range msg.Runes {
+			if r >= '0' && r <= '9' {
+				if !canInsertPortDigit(m.customPorts, m.customCursor, r) {
+					continue
+				}
+				s := string(r)
+				m.customPorts = m.customPorts[:m.customCursor] + s + m.customPorts[m.customCursor:]
+				m.customCursor++
+				continue
+			}
+			if r == ',' {
+				s := string(r)
+				m.customPorts = m.customPorts[:m.customCursor] + s + m.customPorts[m.customCursor:]
+				m.customCursor++
+			}
+		}
+	}
+	return m, nil
+}
+
+func (m model) applyPortConfigAndContinue() (tea.Model, tea.Cmd) {
+	addPorts := ""
+	if m.portPack == "custom" {
+		normalized, normErr := ports.NormalizeCustom(strings.TrimSpace(m.customPorts))
+		if normErr != nil {
+			m.errorMsg = normErr.Error()
+			return m, nil
+		}
+		addPorts = normalized
+		m.customPorts = normalized
+		m.customCursor = len(m.customPorts)
+	}
+
+	resolvedPorts, err := ports.Resolve(m.portPack, addPorts, "")
+	if err != nil {
+		m.errorMsg = err.Error()
+		return m, nil
+	}
+
+	if cfgErr := ports.SaveConfig(ports.Config{
+		Mode:   m.portPack,
+		Custom: addPorts,
+	}); cfgErr != nil {
+		m.errorMsg = cfgErr.Error()
+		return m, nil
+	}
+
+	if netScanner, ok := m.scanner.(*scan.NetScanner); ok {
+		netScanner.Ports = resolvedPorts
+	}
+
+	m.errorMsg = ""
+	m.editingPorts = false
+	return m, nil
+}
+
+func canInsertPortDigit(s string, cursor int, digit rune) bool {
+	start, end := currentTokenBounds(s, cursor)
+	pos := cursor - start
+	token := s[start:end]
+	next := token[:pos] + string(digit) + token[pos:]
+
+	return len(next) <= 5
+}
+
+func currentTokenBounds(s string, cursor int) (int, int) {
+	if cursor < 0 {
+		cursor = 0
+	}
+	if cursor > len(s) {
+		cursor = len(s)
+	}
+
+	start := strings.LastIndexByte(s[:cursor], ',')
+	if start == -1 {
+		start = 0
+	} else {
+		start++
+	}
+
+	rest := s[cursor:]
+	nextComma := strings.IndexByte(rest, ',')
+	end := len(s)
+	if nextComma >= 0 {
+		end = cursor + nextComma
+	}
+
+	return start, end
 }
 
 func (m model) moveCursorUp() {

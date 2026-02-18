@@ -6,3 +6,5 @@ nibble.exe
 *.mp4
 *.txt
 post.md
+
+.gocache/

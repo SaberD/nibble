@@ -47,6 +47,7 @@ func init() {
 // vendorFromMac returns the hardware manufacturer from a MAC address OUI prefix.
 func vendorFromMac(mac string) string {
 	mac = strings.ToLower(mac)
+	// the first 3 bytes in a MAC "xx:xx:xx" maps to a vendor.
 	if len(mac) >= 8 {
 		if vendor, ok := ouiMap[mac[:8]]; ok {
 			return vendor

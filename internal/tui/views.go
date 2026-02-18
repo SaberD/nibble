@@ -12,11 +12,183 @@ func (m model) View() string {
 	if m.scanning || m.scanComplete {
 		return m.scanView()
 	}
+	if m.editingPorts {
+		return m.portsView()
+	}
 	return m.selectionView()
+}
+
+func (m model) portsView() string {
+	var b strings.Builder
+
+	b.WriteString(titleStyle.Render("Configure Scan Ports") + "\n")
+
+	defaultStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	customStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	if m.portPack == "default" {
+		defaultStyle = defaultStyle.Foreground(lipgloss.Color("226")).Bold(true)
+	} else {
+		customStyle = customStyle.Foreground(lipgloss.Color("226")).Bold(true)
+	}
+
+	b.WriteString(defaultStyle.Render("default: 22,23,80,443,445,3389,8080") + "\n")
+	customContent := m.customPorts
+	if m.portPack == "custom" {
+		customContent = m.customPortsWithCursor()
+	}
+	maxWidth := 72
+	if m.windowWidth > 8 {
+		maxWidth = m.windowWidth - 4
+	}
+	customLine := wrapCSVLineWithPrefix("custom:  ", customContent, maxWidth)
+	invalidTokens := invalidPortTokens(m.errorMsg)
+	if m.portPack == "custom" && len(invalidTokens) > 0 {
+		b.WriteString(highlightInvalidTokens(customLine, invalidTokens) + "\n")
+	} else {
+		b.WriteString(customStyle.Render(customLine) + "\n")
+	}
+	if m.portPack == "custom" && strings.TrimSpace(m.customPorts) == "" {
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true).Render("enter comma-separated ports, e.g. 22,80,443") + "\n")
+	}
+
+	if m.portConfigLoc != "" {
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("saved at: "+m.portConfigLoc) + "\n")
+	}
+
+	if m.errorMsg != "" {
+		errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
+		b.WriteString("\n" + errorStyle.Render("Error: "+m.errorMsg) + "\n")
+	}
+
+	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	helpText := "tab: mode • left/right: move • type/backspace: edit • del: clear • enter: save • q: quit"
+	b.WriteString("\n" + helpStyle.Render(wrapWords(helpText, maxWidth)))
+	return docStyle.Render(b.String())
+}
+
+func (m model) customPortsWithCursor() string {
+	cursor := m.customCursor
+	if cursor < 0 {
+		cursor = 0
+	}
+	if cursor > len(m.customPorts) {
+		cursor = len(m.customPorts)
+	}
+	return m.customPorts[:cursor] + "|" + m.customPorts[cursor:]
+}
+
+func wrapCSVLineWithPrefix(prefix, content string, maxWidth int) string {
+	if content == "" {
+		return prefix
+	}
+	if maxWidth <= len(prefix)+1 {
+		return prefix + content
+	}
+
+	indent := strings.Repeat(" ", len(prefix))
+	tokens := strings.Split(content, ",")
+	lines := make([]string, 0, 4)
+	current := prefix
+
+	for i, token := range tokens {
+		segment := token
+		if i < len(tokens)-1 {
+			segment += ","
+		}
+
+		// Break on comma boundaries when the current line is full.
+		if len(current)+len(segment) > maxWidth && len(current) > len(prefix) {
+			lines = append(lines, current)
+			current = indent + segment
+			continue
+		}
+		current += segment
+	}
+
+	lines = append(lines, current)
+	return strings.Join(lines, "\n")
+}
+
+func wrapWords(s string, maxWidth int) string {
+	if maxWidth <= 0 || len(s) <= maxWidth {
+		return s
+	}
+	words := strings.Fields(s)
+	if len(words) == 0 {
+		return s
+	}
+
+	lines := []string{words[0]}
+	for _, w := range words[1:] {
+		last := lines[len(lines)-1]
+		if len(last)+1+len(w) <= maxWidth {
+			lines[len(lines)-1] = last + " " + w
+			continue
+		}
+		lines = append(lines, w)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func invalidPortTokens(errMsg string) []string {
+	const prefix = "invalid ports: "
+	lower := strings.ToLower(errMsg)
+	if !strings.Contains(lower, prefix) {
+		return nil
+	}
+	i := strings.Index(lower, prefix)
+	if i < 0 {
+		return nil
+	}
+	rest := strings.TrimSpace(errMsg[i+len(prefix):])
+	if rest == "" {
+		return nil
+	}
+	parts := strings.Split(rest, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		s := strings.TrimSpace(p)
+		if s == "" {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+func highlightInvalidTokens(s string, tokens []string) string {
+	invalidStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
+	for _, token := range tokens {
+		if token == "" {
+			continue
+		}
+		start := 0
+		for {
+			idx := strings.Index(s[start:], token)
+			if idx < 0 {
+				break
+			}
+			idx += start
+			end := idx + len(token)
+
+			prevOK := idx == 0 || strings.ContainsRune(" ,:|\n", rune(s[idx-1]))
+			nextOK := end == len(s) || strings.ContainsRune(",|\n ", rune(s[end]))
+			if prevOK && nextOK {
+				s = s[:idx] + invalidStyle.Render(token) + s[end:]
+				break
+			}
+			start = end
+		}
+	}
+	return s
 }
 
 func (m model) scanView() string {
 	var b strings.Builder
+	maxWidth := 72
+	if m.windowWidth > 8 {
+		maxWidth = m.windowWidth - 4
+	}
 
 	// Header.
 	b.WriteString(titleStyle.Render(fmt.Sprintf("Scanning: %s", m.selectedIface.Name)))
@@ -67,7 +239,7 @@ func (m model) scanView() string {
 
 	if m.scanning {
 		helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-		b.WriteString("\n" + helpStyle.Render("q: quit") + "\n")
+		b.WriteString("\n" + helpStyle.Render(wrapWords("q: quit", maxWidth)) + "\n")
 	}
 
 	return b.String()
@@ -75,6 +247,10 @@ func (m model) scanView() string {
 
 func (m model) selectionView() string {
 	var b strings.Builder
+	maxWidth := 72
+	if m.windowWidth > 8 {
+		maxWidth = m.windowWidth - 4
+	}
 
 	titleText := lipgloss.NewStyle().
 		Bold(true).
@@ -106,11 +282,12 @@ func (m model) selectionView() string {
 
 	if m.errorMsg != "" {
 		errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
-		view += "\n\n" + errorStyle.Render("⚠ Error: "+m.errorMsg)
+		view += "\n\n" + errorStyle.Render("Error: "+m.errorMsg)
 	}
 
 	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	view += "\n" + helpStyle.Render("arrows/wasd/hjkl: navigate • enter: select • ?: help • q: quit")
+	helpText := "arrows/wasd/hjkl: navigate • p: ports • ?: help • q: quit"
+	view += "\n" + helpStyle.Render(wrapWords(helpText, maxWidth))
 
 	if m.showHelp {
 		return m.renderHelpOverlay(view)
@@ -181,10 +358,11 @@ func (m model) renderHelpOverlay(view string) string {
 	helpContent := strings.Join([]string{
 		titleRow,
 		"Scans local networks for active hosts.",
-		"• Checks TCP ports (SSH/HTTP/HTTPS/SMB/RDP)",
+		"• Checks configurable TCP ports",
 		"• Banner grabs services (SSH, HTTP Server)",
 		"• Identifies hardware via MAC OUI (IEEE)",
 		"• Runs 100 goroutines in parallel",
+		"• Press p to configure ports (default/custom)",
 		"",
 		"Press any key to close",
 	}, "\n")
