@@ -7,30 +7,36 @@ import (
 	"strings"
 )
 
-var defaultPacks = map[string][]int{
-	"default": {22, 23, 80, 443, 445, 3389, 8080},
-	"custom":  {},
-}
+const (
+	ModeDefault = "default"
+	ModeCustom  = "custom"
+)
+
+var defaultPorts = []int{22, 23, 80, 443, 445, 3389, 8080}
 
 func IsValidPack(name string) bool {
-	_, ok := defaultPacks[name]
-	return ok
+	return name == ModeDefault || name == ModeCustom
 }
 
 func DefaultPorts() []int {
-	out := make([]int, len(defaultPacks["default"]))
-	copy(out, defaultPacks["default"])
+	out := make([]int, len(defaultPorts))
+	copy(out, defaultPorts)
 	return out
 }
 
 // Resolve returns the final port list from a named pack plus optional add/remove lists.
 func Resolve(packName, addPorts, removePorts string) ([]int, error) {
 	if packName == "" {
-		packName = "default"
+		packName = ModeDefault
 	}
 
-	base, ok := defaultPacks[packName]
-	if !ok {
+	var base []int
+	switch packName {
+	case ModeDefault:
+		base = defaultPorts
+	case ModeCustom:
+		base = nil
+	default:
 		return nil, fmt.Errorf("unknown port pack: %s", packName)
 	}
 
