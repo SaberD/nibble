@@ -49,4 +49,4 @@ jobs:
           brew install saberd/tap/nibble
 
       - name: Smoke test nibble startup
-        uses: ./.github/actions/smoke-test
+        uses: backendsystems/nibble/.github/actions/smoke-test@main
