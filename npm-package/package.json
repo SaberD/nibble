@@ -9,7 +9,7 @@
     "postinstall": "node bin/install.js"
   },
   "dependencies": {
-    "bin-wrapper": "^4.1.0"
+    "tar": "^7.0.0"
   },
   "repository": {
     "type": "git",
