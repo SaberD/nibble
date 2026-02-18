@@ -1,4 +1,4 @@
-.PHONY: all build demo update run pip npm goreleaser
+.PHONY: all build demo update run pip npm goreleaser fix
 
 all: run
 
@@ -54,3 +54,9 @@ goreleaser:
 	@goreleaser check
 	@goreleaser release --snapshot --clean
 	@echo "GoReleaser snapshot validation passed"
+
+fix:
+	@go fmt ./...
+	@go vet ./...
+	@go fix ./...
+	@echo "Code formatted, vetted and fixed"
