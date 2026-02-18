@@ -1,9 +1,9 @@
 services:
-  YOUR_PROJECT:
+  dev:
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
-    container_name: devcontainer-YOUR_PROJECT
+    container_name: devcontainer-dev
     network_mode: host
     user: vscode
     volumes:

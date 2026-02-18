@@ -59,3 +59,5 @@ npm install -g @YOUR_OWNER/YOUR_PROJECT
 pipx install YOUR_PROJECT-cli
 go install github.com/YOUR_OWNER/YOUR_PROJECT@latest
 ```
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/YOUR_OWNER/YOUR_PROJECT)
