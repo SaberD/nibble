@@ -25,12 +25,11 @@ const (
 )
 
 type model struct {
-	active      activeView
-	windowW     int
-	cardsPerRow int
-	main        mainview.Model
-	ports       portsview.Model
-	scan        scanview.Model
+	active  activeView
+	windowW int
+	main    mainview.Model
+	ports   portsview.Model
+	scan    scanview.Model
 }
 
 func Run(networkScanner scanner.Scanner, ifaces []net.Interface, addrsByIface map[string][]net.Addr) error {
@@ -48,12 +47,12 @@ func Run(networkScanner scanner.Scanner, ifaces []net.Interface, addrsByIface ma
 	initialWindowW, initialCardsPerRow := initialLayoutMetrics()
 
 	initialModel := model{
-		active:      viewMain,
-		windowW:     initialWindowW,
-		cardsPerRow: initialCardsPerRow,
+		active:  viewMain,
+		windowW: initialWindowW,
 		main: mainview.Model{
 			Interfaces:   ifaces,
 			InterfaceMap: addrsByIface,
+			CardsPerRow:  initialCardsPerRow,
 		},
 		ports: portsview.Model{
 			PortPack:    pack,
@@ -89,7 +88,9 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if _, ok := msg.(tea.WindowSizeMsg); ok {
+	if resize, ok := msg.(tea.WindowSizeMsg); ok {
+		m.windowW = resize.Width
+		m.main.CardsPerRow = mainview.CardsPerRow(resize.Width)
 		return m, nil
 	}
 
@@ -158,18 +159,13 @@ func (m model) View() string {
 	if m.windowW > 8 {
 		maxWidth = m.windowW - 4
 	}
-	cardsPerRow := m.cardsPerRow
-	if cardsPerRow == 0 {
-		cardsPerRow = 1
-	}
-
 	switch m.active {
 	case viewScan:
 		return scanview.Render(m.scan, maxWidth)
 	case viewPorts:
 		return portsview.Render(m.ports, maxWidth)
 	default:
-		return mainview.Render(m.main, maxWidth, cardsPerRow)
+		return mainview.Render(m.main, maxWidth)
 	}
 }
 

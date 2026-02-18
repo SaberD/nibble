@@ -8,7 +8,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func Render(m Model, maxWidth, cardsPerRow int) string {
+func Render(m Model, maxWidth int) string {
+	cardsPerRow := m.CardsPerRow
+	if cardsPerRow == 0 {
+		cardsPerRow = 1
+	}
 	var b strings.Builder
 
 	titleText := lipgloss.NewStyle().

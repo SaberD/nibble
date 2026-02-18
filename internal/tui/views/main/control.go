@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const selectionHelpText = "←/→ a/d h/l • p: ports • ?: help • q: quit"
+const selectionHelpText = "←/→/↑/↓ a/d/w/s h/j/k/l • p: ports • ?: help • q: quit"
 
 const (
 	docMarginX       = 1
@@ -31,6 +31,8 @@ const (
 	ActionOpenPorts
 	ActionMoveLeft
 	ActionMoveRight
+	ActionMoveUp
+	ActionMoveDown
 	ActionStartScan
 )
 
@@ -65,6 +67,10 @@ func HandleKey(showHelp bool, key string) Action {
 		return ActionMoveLeft
 	case "right", "d", "l":
 		return ActionMoveRight
+	case "up", "w", "k":
+		return ActionMoveUp
+	case "down", "s", "j":
+		return ActionMoveDown
 	case "enter":
 		return ActionStartScan
 	default:
@@ -84,6 +90,22 @@ func MoveCursorRight(cursor, maxIndex int) int {
 		cursor++
 	}
 	return cursor
+}
+
+func MoveCursorUp(cursor, cardsPerRow int) int {
+	next := cursor - cardsPerRow
+	if next < 0 {
+		return cursor
+	}
+	return next
+}
+
+func MoveCursorDown(cursor, cardsPerRow, maxIndex int) int {
+	next := cursor + cardsPerRow
+	if next > maxIndex {
+		return cursor
+	}
+	return next
 }
 
 func CardsPerRow(windowWidth int) int {
@@ -133,6 +155,10 @@ func (m Model) Update(msg tea.KeyMsg) UpdateResult {
 		result.Model.Cursor = MoveCursorLeft(result.Model.Cursor)
 	case ActionMoveRight:
 		result.Model.Cursor = MoveCursorRight(result.Model.Cursor, len(result.Model.Interfaces)-1)
+	case ActionMoveUp:
+		result.Model.Cursor = MoveCursorUp(result.Model.Cursor, result.Model.CardsPerRow)
+	case ActionMoveDown:
+		result.Model.Cursor = MoveCursorDown(result.Model.Cursor, result.Model.CardsPerRow, len(result.Model.Interfaces)-1)
 	case ActionStartScan:
 		selection, err := ResolveScanSelection(result.Model.Interfaces, result.Model.Cursor, result.Model.InterfaceMap)
 		if err != nil {
