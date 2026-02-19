@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/backendsystems/nibble/internal/ports"
+	"github.com/backendsystems/nibble/internal/scan"
 	"github.com/backendsystems/nibble/internal/scanner"
 )
 
@@ -36,7 +37,7 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 		}
 		resolved := scanner.HostResult{
 			IP:       h.IP,
-			Hardware: h.Hardware,
+			Hardware: scan.VendorFromMac(h.Hardware),
 		}
 		for _, p := range h.Ports {
 			if _, ok := selectedSet[p.Port]; !ok {

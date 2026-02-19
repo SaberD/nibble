@@ -72,7 +72,7 @@ func scanOpenPorts(ip string, ports []int) []portResult {
 
 func resolveHardware(ifaceName string, targetIP net.IP, knownMAC string) string {
 	if knownMAC != "" {
-		return vendorFromMac(knownMAC)
+		return VendorFromMac(knownMAC)
 	}
 	if targetIP == nil {
 		return ""
@@ -85,5 +85,5 @@ func resolveHardware(ifaceName string, targetIP net.IP, knownMAC string) string 
 	if mac == "" {
 		return ""
 	}
-	return vendorFromMac(mac)
+	return VendorFromMac(mac)
 }

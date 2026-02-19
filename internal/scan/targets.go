@@ -124,7 +124,7 @@ func buildSkipMap(neighbors []NeighborEntry) map[string]struct{} {
 func formatHost(neighbor NeighborEntry) string {
 	return scanner.FormatHost(scanner.HostResult{
 		IP:       neighbor.IP,
-		Hardware: vendorFromMac(neighbor.MAC),
+		Hardware: VendorFromMac(neighbor.MAC),
 	})
 }
 
