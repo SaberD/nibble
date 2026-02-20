@@ -26,9 +26,10 @@ func (s *NetScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- s
 	close(progressChan)
 }
 
-func (s *NetScanner) ports() []int {
-	if len(s.Ports) > 0 {
-		return s.Ports
+func (s *NetScanner) ports() (out []int) {
+	out = ports.DefaultPorts()
+	if s.Ports != nil {
+		out = s.Ports
 	}
-	return ports.DefaultPorts()
+	return out
 }

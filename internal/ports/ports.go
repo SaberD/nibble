@@ -75,14 +75,11 @@ func Resolve(packName, addPorts, removePorts string) ([]int, error) {
 		delete(set, p)
 	}
 
-	out := make([]int, 0, len(set))
+	out := []int{}
 	for p := range set {
 		out = append(out, p)
 	}
 	sort.Ints(out)
-	if len(out) == 0 {
-		return nil, fmt.Errorf("port list is empty")
-	}
 	return out, nil
 }
 

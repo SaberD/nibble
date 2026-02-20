@@ -27,6 +27,7 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 	for _, p := range selected {
 		selectedSet[p] = struct{}{}
 	}
+	hostOnly := len(s.Ports) == 0
 
 	// Pick which demo hosts belong to this subnet.
 	var subnetHosts []scanner.HostResult
@@ -39,17 +40,19 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 			IP:       h.IP,
 			Hardware: scan.VendorFromMac(h.Hardware),
 		}
-		for _, p := range h.Ports {
-			if _, ok := selectedSet[p.Port]; !ok {
+		if !hostOnly {
+			for _, p := range h.Ports {
+				if _, ok := selectedSet[p.Port]; !ok {
+					continue
+				}
+				resolved.Ports = append(resolved.Ports, scanner.PortInfo{
+					Port:   p.Port,
+					Banner: p.Banner,
+				})
+			}
+			if len(resolved.Ports) == 0 {
 				continue
 			}
-			resolved.Ports = append(resolved.Ports, scanner.PortInfo{
-				Port:   p.Port,
-				Banner: p.Banner,
-			})
-		}
-		if len(resolved.Ports) == 0 {
-			continue
 		}
 		subnetHosts = append(subnetHosts, resolved)
 	}
@@ -110,7 +113,7 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 }
 
 func selectedPorts(configured []int) []int {
-	if len(configured) > 0 {
+	if configured != nil {
 		return configured
 	}
 	return ports.DefaultPorts()

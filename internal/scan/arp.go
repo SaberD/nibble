@@ -27,7 +27,7 @@ func resolveMac(ifaceName string, targetIP net.IP) string {
 	}
 	defer client.Close()
 
-	client.SetDeadline(time.Now().Add(200 * time.Millisecond))
+	client.SetDeadline(time.Now().Add(portDialTimeout))
 
 	addr, ok := netip.AddrFromSlice(targetIP.To4())
 	if !ok {

@@ -2,6 +2,7 @@ nibble
 nibble.exe
 *.cast
 .claude/
+.agents/
 .artifacts/
 *.mp4
 *.txt

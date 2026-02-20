@@ -10,7 +10,7 @@ import (
 	"github.com/backendsystems/nibble/internal/scanner"
 )
 
-const portDialTimeout = 200 * time.Millisecond
+const portDialTimeout = 70 * time.Millisecond
 
 type portResult struct {
 	port   int
@@ -22,6 +22,16 @@ func scanHost(ifaceName, ip string, ports []int) string {
 }
 
 func scanHostMac(ifaceName, ip, knownMAC string, ports []int) string {
+	if len(ports) == 0 {
+		// Host-only mode: ARP to check liveness (requires CAP_NET_RAW).
+		// For neighbors knownMAC is already set so no ARP request is made.
+		hardware := resolveHardware(ifaceName, net.ParseIP(ip), knownMAC)
+		if knownMAC == "" && hardware == "" {
+			return ""
+		}
+		return scanner.FormatHost(scanner.HostResult{IP: ip, Hardware: hardware})
+	}
+
 	results := scanOpenPorts(ip, ports)
 	if len(results) == 0 {
 		return ""
