@@ -33,7 +33,7 @@ func renderHelpOverlay(view string) string {
 		"Configure which ports get scanned.",
 		"• tab: switch default/custom mode",
 		"• ←/→ or a/d or h/l: move cursor in custom list",
-		"• type digits and commas to edit custom ports",
+		"• type digits, commas, and ranges (e.g. 8000-9000)",
 		"• backspace: remove",
 		"• delete: clear all",
 		"• q: quit",

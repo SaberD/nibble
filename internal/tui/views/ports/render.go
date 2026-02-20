@@ -36,7 +36,7 @@ func Render(m Model, maxWidth int) string {
 		b.WriteString(customStyle.Render(customLine) + "\n")
 	}
 	if m.PortPack == "custom" && strings.TrimSpace(m.CustomPorts) == "" {
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true).Render("  • enter ports e.g. 22,80,443 or empty = hosts only scan") + "\n")
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true).Render("  • enter ports e.g. 22,80,443,8000-9000 or empty = hosts only scan") + "\n")
 	}
 
 	if m.PortConfigLoc != "" {

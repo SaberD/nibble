@@ -106,8 +106,8 @@ func Backspace(value string, cursor int) (string, int) {
 func InsertRunes(value string, cursor int, runes []rune) (string, int) {
 	cursor = ClampCursor(cursor, len(value))
 	for _, r := range runes {
-		if r >= '0' && r <= '9' {
-			if !canInsertPortDigit(value, cursor, r) {
+		if (r >= '0' && r <= '9') || r == '-' {
+			if !canInsertPortChar(value, cursor, r) {
 				continue
 			}
 			s := string(r)
@@ -124,12 +124,21 @@ func InsertRunes(value string, cursor int, runes []rune) (string, int) {
 	return value, cursor
 }
 
-func canInsertPortDigit(s string, cursor int, digit rune) bool {
+func canInsertPortChar(s string, cursor int, ch rune) bool {
 	start, end := currentTokenBounds(s, cursor)
 	pos := cursor - start
 	token := s[start:end]
-	next := token[:pos] + string(digit) + token[pos:]
-	return len(next) <= 5
+	next := token[:pos] + string(ch) + token[pos:]
+
+	if strings.Count(next, "-") > 1 {
+		return false
+	}
+	if strings.Count(next, "-") == 0 {
+		return len(next) <= 5
+	}
+
+	parts := strings.SplitN(next, "-", 2)
+	return len(parts[0]) <= 5 && len(parts[1]) <= 5
 }
 
 func currentTokenBounds(s string, cursor int) (int, int) {
