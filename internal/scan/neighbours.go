@@ -80,7 +80,7 @@ func scanOpenPorts(ip string, ports []int) []portResult {
 	return results
 }
 
-func resolveHardware(ifaceName string, targetIP net.IP, knownMAC string) string {
+func resolveHardware(_ string, targetIP net.IP, knownMAC string) string {
 	if knownMAC != "" {
 		return VendorFromMac(knownMAC)
 	}
@@ -88,10 +88,7 @@ func resolveHardware(ifaceName string, targetIP net.IP, knownMAC string) string 
 		return ""
 	}
 
-	mac := resolveMac(ifaceName, targetIP)
-	if mac == "" {
-		mac = lookupMacFromCache(targetIP.String())
-	}
+	mac := lookupMacFromCache(targetIP.String())
 	if mac == "" {
 		return ""
 	}

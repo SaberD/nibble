@@ -99,8 +99,10 @@ func processNeighborJob(ifaceName string, neighbor NeighborEntry, ports []int, t
 
 func processSweepJob(ifaceName, currentIP string, ports []int, skipIPs map[string]struct{}, totalHosts int, scanned *atomic.Int64, progressChan chan<- scanner.ProgressUpdate) {
 	hostInfo := ""
-	if _, alreadyFound := skipIPs[currentIP]; !alreadyFound {
-		hostInfo = scanHost(ifaceName, currentIP, ports)
+	if len(ports) > 0 {
+		if _, alreadyFound := skipIPs[currentIP]; !alreadyFound {
+			hostInfo = scanHost(ifaceName, currentIP, ports)
+		}
 	}
 
 	currentScanned := int(scanned.Add(1))
