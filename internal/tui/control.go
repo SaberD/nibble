@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"net"
 	"os"
 
@@ -28,6 +29,7 @@ const (
 type model struct {
 	active  activeView
 	windowW int
+	windowH int
 	main    mainview.Model
 	ports   portsview.Model
 	scan    scanview.Model
@@ -48,11 +50,12 @@ func Run(networkScanner scanner.Scanner, ifaces []net.Interface, addrsByIface ma
 		}
 	}
 
-	initialWindowW, initialCardsPerRow := initialLayoutMetrics()
+	initialWindowW, initialWindowH, initialCardsPerRow := initialLayoutMetrics()
 
 	initialModel := model{
 		active:  viewMain,
 		windowW: initialWindowW,
+		windowH: initialWindowH,
 		main: mainview.Model{
 			Interfaces:   ifaces,
 			InterfaceMap: addrsByIface,
@@ -70,10 +73,24 @@ func Run(networkScanner scanner.Scanner, ifaces []net.Interface, addrsByIface ma
 			),
 		},
 	}
+	initialModel.scan = initialModel.scan.SetViewportSize(scanViewWidth(initialModel.windowW), initialModel.windowH)
 
 	prog := tea.NewProgram(initialModel)
-	_, err := prog.Run()
-	return err
+	finalModel, err := prog.Run()
+	if err != nil {
+		return err
+	}
+
+	finalState, ok := finalModel.(model)
+	if !ok {
+		return nil
+	}
+	if !finalState.scan.ShouldPrintFinal {
+		return nil
+	}
+
+	fmt.Printf("%s\n", scanview.FinalOutput(finalState.scan))
+	return nil
 }
 
 func (m model) Init() tea.Cmd {
@@ -88,13 +105,15 @@ func (m model) Init() tea.Cmd {
 	if m.ports.CustomCursor < 0 || m.ports.CustomCursor > len(m.ports.CustomPorts) {
 		m.ports.CustomCursor = len(m.ports.CustomPorts)
 	}
-	return nil
+	return enterAltScreenCmd()
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if resize, ok := msg.(tea.WindowSizeMsg); ok {
 		m.windowW = resize.Width
+		m.windowH = resize.Height
 		m.main.CardsPerRow = mainview.CardsPerRow(resize.Width)
+		m.scan = m.scan.SetViewportSize(scanViewWidth(m.windowW), m.windowH)
 		return m, nil
 	}
 
@@ -148,9 +167,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				result.Selection.TotalHosts,
 				result.Selection.TargetAddr,
 			)
+			nextScan = nextScan.SetViewportSize(scanViewWidth(m.windowW), m.windowH)
 			m.scan = nextScan
 			m.active = viewScan
-			return m, cmd
+			return m, tea.Sequence(exitAltScreenCmd(), cmd)
 		}
 		return m, nil
 	default:
@@ -159,10 +179,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	maxWidth := 72
-	if m.windowW > 8 {
-		maxWidth = m.windowW - 4
-	}
+	maxWidth := scanViewWidth(m.windowW)
 	switch m.active {
 	case viewScan:
 		return scanview.Render(m.scan, maxWidth)
@@ -173,17 +190,33 @@ func (m model) View() string {
 	}
 }
 
-func initialLayoutMetrics() (windowW int, cardsPerRow int) {
+func initialLayoutMetrics() (windowW int, windowH int, cardsPerRow int) {
 	cardsPerRow = 1
 	fd := os.Stdout.Fd()
 	if !term.IsTerminal(fd) {
-		return 0, cardsPerRow
+		return 0, 0, cardsPerRow
 	}
 
-	width, _, err := term.GetSize(fd)
-	if err != nil || width <= 0 {
-		return 0, cardsPerRow
+	width, height, err := term.GetSize(fd)
+	if err != nil || width <= 0 || height <= 0 {
+		return 0, 0, cardsPerRow
 	}
 
-	return width, mainview.CardsPerRow(width)
+	return width, height, mainview.CardsPerRow(width)
+}
+
+func scanViewWidth(windowW int) int {
+	maxWidth := 72
+	if windowW > 8 {
+		maxWidth = windowW - 4
+	}
+	return maxWidth
+}
+
+func enterAltScreenCmd() tea.Cmd {
+	return func() tea.Msg { return tea.EnterAltScreen() }
+}
+
+func exitAltScreenCmd() tea.Cmd {
+	return func() tea.Msg { return tea.ExitAltScreen() }
 }

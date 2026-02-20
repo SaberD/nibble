@@ -28,10 +28,12 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 		selectedSet[p] = struct{}{}
 	}
 	hostOnly := len(s.Ports) == 0
+	hosts := hostsForInterface(ifaceName)
+	neighborDelay, sweepDelay := demoDelaysForInterface(ifaceName)
 
 	// Pick which demo hosts belong to this subnet.
 	var subnetHosts []scanner.HostResult
-	for _, h := range Hosts {
+	for _, h := range hosts {
 		ip := net.ParseIP(h.IP)
 		if ip == nil || !ipnet.Contains(ip) {
 			continue
@@ -69,7 +71,7 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 	neighbors := subnetHosts[:neighborCount]
 	remaining := subnetHosts[neighborCount:]
 	for i, h := range neighbors {
-		time.Sleep(180 * time.Millisecond)
+		time.Sleep(neighborDelay)
 		progressChan <- scanner.NeighborProgress{
 			Host:       scanner.FormatHost(h),
 			TotalHosts: totalHosts,
@@ -93,7 +95,7 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 	hostIdx := 0
 
 	for i := 1; i <= totalHosts; i++ {
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(sweepDelay)
 
 		host := ""
 		if hostInterval > 0 && hostIdx < len(remaining) && i == hostInterval*(hostIdx+1) {
@@ -110,6 +112,20 @@ func (s *DemoScanner) ScanNetwork(ifaceName, subnet string, progressChan chan<- 
 	}
 
 	close(progressChan)
+}
+
+func hostsForInterface(ifaceName string) []Host {
+	if ifaceName == "wlan0" {
+		return WiFiHosts
+	}
+	return Hosts
+}
+
+func demoDelaysForInterface(ifaceName string) (neighborDelay, sweepDelay time.Duration) {
+	if ifaceName == "wlan0" {
+		return 260 * time.Millisecond, 20 * time.Millisecond
+	}
+	return 180 * time.Millisecond, 10 * time.Millisecond
 }
 
 func selectedPorts(configured []int) []int {
