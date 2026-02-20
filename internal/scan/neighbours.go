@@ -3,6 +3,7 @@ package scan
 import (
 	"fmt"
 	"net"
+	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -11,6 +12,10 @@ import (
 )
 
 const portDialTimeout = 70 * time.Millisecond
+const windowsGlobalDialConcurrencyCap = 64 * 100
+const unixGlobalDialConcurrencyCap = 12 * 1024
+
+var dialLimiter = newDialLimiter()
 
 type portResult struct {
 	port   int
@@ -63,6 +68,13 @@ func scanOpenPorts(ip string, ports []int) []portResult {
 		wg.Add(1)
 		go func(port int) {
 			defer wg.Done()
+			if dialLimiter != nil {
+				// Acquire one slot in the global dial work pool
+				dialLimiter <- struct{}{}
+				defer func() {
+					<-dialLimiter // release
+				}()
+			}
 
 			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), portDialTimeout)
 			if err != nil {
@@ -78,6 +90,19 @@ func scanOpenPorts(ip string, ports []int) []portResult {
 
 	wg.Wait()
 	return results
+}
+
+// newDialLimiter returns a process wide semaphore that caps concurrent TCP dials.
+// Windows uses a lower cap due to stricter socket/buffer limits.
+func newDialLimiter() chan struct{} {
+	switch runtime.GOOS {
+	case "windows":
+		return make(chan struct{}, windowsGlobalDialConcurrencyCap)
+	case "linux", "darwin":
+		return make(chan struct{}, unixGlobalDialConcurrencyCap)
+	default:
+		return nil
+	}
 }
 
 func resolveHardware(_ string, targetIP net.IP, knownMAC string) string {
