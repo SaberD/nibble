@@ -12,7 +12,8 @@ import (
 )
 
 const portDialTimeout = 70 * time.Millisecond
-const windowsGlobalDialConcurrencyCap = 64 * 100
+const macosGlobalDialConcurrencyCap = 2 * 1024
+const windowsGlobalDialConcurrencyCap = 6 * 1024
 const unixGlobalDialConcurrencyCap = 12 * 1024
 
 var dialLimiter = newDialLimiter()
@@ -98,7 +99,9 @@ func newDialLimiter() chan struct{} {
 	switch runtime.GOOS {
 	case "windows":
 		return make(chan struct{}, windowsGlobalDialConcurrencyCap)
-	case "linux", "darwin":
+	case "darwin":
+		return make(chan struct{}, macosGlobalDialConcurrencyCap)
+	case "linux":
 		return make(chan struct{}, unixGlobalDialConcurrencyCap)
 	default:
 		return nil
